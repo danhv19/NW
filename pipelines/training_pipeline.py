@@ -164,6 +164,8 @@ def run_training(file_path: str):
         ax.set_title("Matriz de correlación (variables numéricas)")
         _save(f, "eda_heatmap_corr")
 
+    # Archivo: pipelines/training_pipeline.py
+
     # ─── FASE 2 · Preparación de datos ───────────────────────────────
     drop_cols = [
         "Periodo","CÓDIGO","ALUMNO","DEPART","DISTRITO","NACIM","PERIODO_INGRESO",
@@ -172,8 +174,14 @@ def run_training(file_path: str):
         "ASISTENCIAS","CLASES","Promedio_Final","CUOTA_1","CUOTA_2","CUOTA_3","CUOTA_4","CUOTA_5",
         "ESTADO_APROBACION","DESCRIPCION"
     ]
-    X = df.drop(columns=drop_cols + ["ESTADO_APROBACION_NUM"], errors="ignore")
+
+    # ↓↓↓ ASEGÚRATE DE QUE ESTA PARTE ESTÉ ASÍ ↓↓↓
+    # 1. Se define 'y' con la columna objetivo.
     y = df["ESTADO_APROBACION_NUM"]
+
+    # 2. Se eliminan del DataFrame 'X' TANTO las columnas de 'drop_cols' COMO la columna objetivo.
+    X = df.drop(columns=["ESTADO_APROBACION_NUM"] + drop_cols, errors="ignore")
+    # ↑↑↑ ESTA LÍNEA ES LA MÁS IMPORTANTE ↑↑↑
 
     num_cols = X.select_dtypes(include="number").columns.tolist()
     cat_cols = X.select_dtypes(exclude="number").columns.tolist()
