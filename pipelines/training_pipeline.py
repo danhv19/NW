@@ -172,7 +172,7 @@ def run_training(file_path: str):
         "ASISTENCIAS","CLASES","Promedio_Final","CUOTA_1","CUOTA_2","CUOTA_3","CUOTA_4","CUOTA_5",
         "ESTADO_APROBACION","DESCRIPCION"
     ]
-    X = df.drop(columns=drop_cols, errors="ignore")
+    X = df.drop(columns=drop_cols + ["ESTADO_APROBACION_NUM"], errors="ignore")
     y = df["ESTADO_APROBACION_NUM"]
 
     num_cols = X.select_dtypes(include="number").columns.tolist()
