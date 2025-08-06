@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>🔎 Proyecto de Predicción Estudiantil</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <h1>🔍 Bienvenido al Sistema de Predicción</h1>
+
+  <h2>🚀 Entrenar un modelo desde Excel (.xlsx)</h2>
+  <form method="POST" action="/train" enctype="multipart/form-data">
+    <label for="train_file">Selecciona archivo de entrenamiento:</label>
+    <input type="file" name="train_file" accept=".xlsx,.xls" required>
+    <button type="submit">Entrenar modelo</button>
+  </form>
+
+  <hr>
+
+  <h2>📊 Realizar predicción con modelo entrenado</h2>
+  <form method="POST" action="/predict" enctype="multipart/form-data">
+    <label for="predict_file">Archivo con nuevos datos (.xlsx):</label>
+    <input type="file" name="predict_file" accept=".xlsx,.xls" required><br><br>
+    
+    <label for="model_file">Modelo entrenado (.pkl):</label>
+    <input type="file" name="model_file" accept=".pkl" required><br><br>
+    
+    <button type="submit">Realizar predicción</button>
+  </form>
+</body>
+</html>
