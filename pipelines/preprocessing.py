@@ -46,7 +46,9 @@ def load_and_clean_data(filepath, is_training_data=True):
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    df.dropna(subset=num_cols, inplace=True)
+    cols_to_impute = [col for col in num_cols if col in df.columns]
+    if cols_to_impute:
+        df[cols_to_impute] = df[cols_to_impute].fillna(df[cols_to_impute].median())
 
     # --- Ingeniería de Características ---
 
