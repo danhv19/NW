@@ -58,11 +58,11 @@ def load_and_clean_data(filepath, is_training_data=True):
         df['CUOTAS_PAGADAS'] = df[cuota_cols].applymap(lambda x: 1 if str(x).strip().upper() == 'COBRADO' else 0).sum(axis=1)
         df['INDICE_PAGO'] = df['CUOTAS_PAGADAS'] / 5
         df['CUOTAS_PENDIENTES'] = 5 - df['CUOTAS_PAGADAS']
-
+        # NUEVO: Característica de consistencia de pago
+        df['PAGO_CONSISTENTE'] = (df['CUOTAS_PAGADAS'] >= 4).astype(int)
 
     # 2. Calcular asistencia promedio por curso
     if 'PORCENTAJE_asistencia' in df.columns and 'CURSOS_MATRICULADOS' in df.columns:
-        # Evitar división por cero
         df['ASISTENCIA_POR_CURSO'] = df['PORCENTAJE_asistencia'] / df['CURSOS_MATRICULADOS'].replace(0, 1)
 
     # 3. Crear características de interacción
@@ -72,13 +72,22 @@ def load_and_clean_data(filepath, is_training_data=True):
     if "CURSOS_MATRICULADOS" in df.columns and "INDICE_PAGO" in df.columns:
          df["CURSOS_X_INDICE_PAGO"] = df["CURSOS_MATRICULADOS"] * df["INDICE_PAGO"]
 
-    # 4. Agrupar categorías raras para mejorar el aprendizaje
+    # 4. NUEVO: Agrupar EDAD en categorías
+    if "EDAD" in df.columns:
+        bins = [0, 22, 35, 50, 100]
+        labels = ['Joven (0-22)', 'Adulto (23-35)', 'Adulto Mayor (36-50)', 'Senior (51+)']
+        df['GRUPO_EDAD'] = pd.cut(df['EDAD'], bins=bins, labels=labels, right=False)
+        # Convertir a string para el preprocesador
+        df['GRUPO_EDAD'] = df['GRUPO_EDAD'].astype(str)
+
+    # 5. Agrupar categorías raras
     if is_training_data:
-        cat_cols_to_process = ['PROCEDENCIA', 'DESCRIPCION']
+        cat_cols_to_process = ['PROCEDENCIA', 'DESCRIPCION', 'DOCENTE']
         for col in cat_cols_to_process:
             if col in df.columns:
                 value_counts = df[col].value_counts(normalize=True)
-                rare_categories = value_counts[value_counts < 0.01].index
+                # Umbral más estricto para agrupar
+                rare_categories = value_counts[value_counts < 0.02].index
                 if len(rare_categories) > 0:
                     df[col] = df[col].replace(rare_categories, 'Otros')
 

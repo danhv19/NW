@@ -168,13 +168,13 @@ def run_training(file_path: str):
         drop_cols = [
         "Periodo","CÓDIGO","ALUMNO","DEPART","DISTRITO","NACIM","PERIODO_INGRESO",
         "CARRERA_PLAN","FECHA_MATRICULA","CURSO_CODIGO","CURSO_NOMBRE","DESCRIPCION_1",
-        "PROMEDIO_CURSO","TIPOSESION","SECCIÓN","DOCENTE","PERIODO_ACADEMICO","PERIODOMES",
+        "PROMEDIO_CURSO","TIPOSESION","SECCIÓN","PERIODO_ACADEMICO","PERIODOMES", # Se quitaron DOCENTE y DESCRIPCION
         "ASISTENCIAS","CLASES","Promedio_Final","CUOTA_1","CUOTA_2","CUOTA_3","CUOTA_4","CUOTA_5",
-        "ESTADO_APROBACION","DESCRIPCION"
+        "ESTADO_APROBACION"
         ]
         # Separamos la variable objetivo 'y' y la eliminamos explícitamente de las características 'X'
         y = df["ESTADO_APROBACION_NUM"]
-        X = df.drop(columns=["ESTADO_APROBACION_NUM"] + drop_cols, errors="ignore") # <-- ¡AQUÍ ESTÁ LA MAGIA!
+        X = df.drop(columns=["ESTADO_APROBACION_NUM"] + drop_cols, errors="ignore") 
 
         num_cols = X.select_dtypes(include="number").columns.tolist()
         cat_cols = X.select_dtypes(exclude="number").columns.tolist()
@@ -194,17 +194,22 @@ def run_training(file_path: str):
     models = {
         "LogReg": (
             LogisticRegression(class_weight="balanced", random_state=42),
-            {"classifier__C":[.1,1,10], "classifier__solver":["liblinear"]}
+            {"classifier__C":[.1, 1, 10], "classifier__solver":["liblinear"]}
         ),
         "RandForest": (
             RandomForestClassifier(class_weight="balanced", random_state=42),
-            {"classifier__n_estimators":[100,200], "classifier__max_depth":[10,None]}
+            { # --- PARÁMETROS AMPLIADOS ---
+              "classifier__n_estimators": [100, 200, 300],
+              "classifier__max_depth": [5, 10, 20, None],
+              "classifier__min_samples_split": [2, 5, 10],
+              "classifier__min_samples_leaf": [1, 2, 4]
+            }
         ),
         "GradBoost": (
             GradientBoostingClassifier(random_state=42),
-            {"classifier__n_estimators":[100,200],
-             "classifier__learning_rate":[.05,.1],
-             "classifier__max_depth":[3,5]}
+            {"classifier__n_estimators":[100, 200],
+             "classifier__learning_rate":[.05, .1],
+             "classifier__max_depth":[3, 5]}
         )
     }
 
@@ -213,8 +218,8 @@ def run_training(file_path: str):
 
     for name, (clf, grid) in models.items():
         pipe = Pipeline([("preprocessor", pre), ("classifier", clf)])
-        gs   = GridSearchCV(pipe, grid, cv=5, n_jobs=-1,
-                            scoring="roc_auc").fit(X_tr, y_tr)
+        gs = GridSearchCV(pipe, grid, cv=5, n_jobs=1,
+                    scoring="roc_auc").fit(X_tr, y_tr)
 
         y_pred = gs.predict(X_te)
         acc = accuracy_score(y_te, y_pred)
