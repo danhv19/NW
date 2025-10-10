@@ -1,4 +1,9 @@
 import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
 
 def clean_data(df):
     """
@@ -11,106 +16,90 @@ def clean_data(df):
         if col in df.columns:
             df[col] = pd.to_datetime(df[col], dayfirst=True, errors='coerce')
             
-    for col in ['CUOTA_1', 'CUOTA_2', 'CUOTA_3', 'CUOTA_4']:
+    for col in ['CUOTA_1', 'CUOTA_2', 'CUOTA_3', 'CUOTA_4', 'CUOTA_5']:
         if col in df.columns:
             df[col] = df[col].map({'COBRADO': 1, 'PENDIENTE': 0}).fillna(0)
 
     if 'Estado_nota' in df.columns:
         df['target'] = df['Estado_nota'].map({'Aprobado': 1, 'Desaprobado': 0})
-        # No eliminamos 'Estado_nota' para poder usarla en los gráficos
         
     return df
 
 def feature_engineering_by_stage(df, stage):
     """
-    Crea características específicas para cada etapa (1, 2, 3 o 4).
+    Crea características específicas para cada etapa de forma segura.
     """
     if 'fecha_matricula' in df.columns and 'fecha_inicio' in df.columns:
         df['dias_anticipacion_matricula'] = (df['fecha_inicio'] - df['fecha_matricula']).dt.days
+    else:
+        df['dias_anticipacion_matricula'] = 0
 
     if stage >= 1:
-        df['cuotas_pagadas_ud1'] = df['CUOTA_1']
+        df['cuotas_pagadas_ud1'] = df.get('CUOTA_1', 0)
     if stage >= 2:
-        df['cuotas_pagadas_ud2'] = df['CUOTA_1'] + df['CUOTA_2']
-        df['mejora_ud2'] = df['ud2'] - df['ud1']
+        df['cuotas_pagadas_ud2'] = df.get('CUOTA_1', 0) + df.get('CUOTA_2', 0)
     if stage >= 3:
-        df['cuotas_pagadas_ud3'] = df['CUOTA_1'] + df['CUOTA_2'] + df['CUOTA_3']
-        df['mejora_ud3'] = df['ud3'] - df['ud2']
+        df['cuotas_pagadas_ud3'] = df.get('CUOTA_1', 0) + df.get('CUOTA_2', 0) + df.get('CUOTA_3', 0)
+        df['mejora_ud2'] = df.get('ud2', 0) - df.get('ud1', 0)
     if stage >= 4:
-        df['cuotas_pagadas_ud4'] = df['CUOTA_1'] + df['CUOTA_2'] + df['CUOTA_3'] + df['CUOTA_4']
-        df['mejora_ud4'] = df['ud4'] - df['promedio'] 
+        df['cuotas_pagadas_ud4'] = df.get('CUOTA_1', 0) + df.get('CUOTA_2', 0) + df.get('CUOTA_3', 0) + df.get('CUOTA_4', 0)
+        df['mejora_ud3'] = df.get('ud3', 0) - df.get('ud2', 0)
         
     return df
 
 def get_features_for_stage(stage):
     """
-    Devuelve la lista de columnas a usar como características para cada etapa.
+    Define las características correctas para cada ETAPA DE PREDICCIÓN.
     """
-    base_features = ['Carrera', 'Docente', 'Ciclo', 'dias_anticipacion_matricula']
+    base_features = ['Carrera', 'Docente', 'Asistencia', 'Ciclo', 'dias_anticipacion_matricula']
     
+    # Modelo 1: Se entrena SIN NOTAS. Se usa para predecir ANTES de la UD1.
     if stage == 1:
-        return base_features + ['ud1', 'cuotas_pagadas_ud1', 'Asistencia']
+        return base_features + ['cuotas_pagadas_ud1']
+        
+    # Modelo 2: Se entrena CON la nota de UD1. Se usa para predecir DESPUÉS de la UD1.
     elif stage == 2:
-        return base_features + ['ud1', 'ud2', 'cuotas_pagadas_ud2', 'Asistencia', 'mejora_ud2']
+        return base_features + ['cuotas_pagadas_ud2', 'ud1']
+        
+    # Modelo 3: Se entrena CON las notas de UD1 y UD2. Se usa para predecir DESPUÉS de la UD2.
     elif stage == 3:
-        return base_features + ['ud1', 'ud2', 'ud3', 'cuotas_pagadas_ud3', 'Asistencia', 'mejora_ud3']
+        return base_features + ['cuotas_pagadas_ud3', 'ud1', 'ud2', 'mejora_ud2']
+        
+    # Modelo 4: Se entrena CON las notas de UD1, UD2 y UD3. Se usa para predecir DESPUÉS de la UD3.
     elif stage == 4:
-        return base_features + ['ud1', 'ud2', 'ud3', 'ud4', 'promedio', 'cuotas_pagadas_ud4', 'Asistencia', 'mejora_ud4']
-    else:
-        return []
+        return base_features + ['cuotas_pagadas_ud4', 'ud1', 'ud2', 'ud3', 'mejora_ud2', 'mejora_ud3']
+        
+    return []
 
 def preprocess_for_gradual_training(df, stage):
     """
-    Función principal que orquesta el preprocesamiento para una etapa específica.
+    Orquesta el preprocesamiento para el entrenamiento y devuelve los datos y el preprocesador.
     """
     df_clean = clean_data(df.copy())
     df_featured = feature_engineering_by_stage(df_clean, stage)
     
-    features = get_features_for_stage(stage)
+    features_to_use = get_features_for_stage(stage)
     
     if 'target' not in df_featured.columns:
         raise ValueError("La columna 'Estado_nota' (mapeada a 'target') no se encontró.")
         
-    X = df_featured[features]
+    X = df_featured[[col for col in features_to_use if col in df_featured.columns]]
     y = df_featured['target']
-    
-    X = pd.get_dummies(X, columns=['Carrera', 'Docente'], drop_first=True)
-    
-    return X, y
 
-# En pipelines/preprocessing_gradual.py
+    numeric_features = X.select_dtypes(include='number').columns.tolist()
+    categorical_features = X.select_dtypes(exclude='number').columns.tolist()
 
-def preprocess_for_gradual_prediction(df):
-    """
-    Preprocesa datos nuevos para predicción gradual, detectando la etapa automáticamente.
-    """
-    # Detectar la etapa basada en las columnas presentes
-    stage = 0
-    if 'ud4' in df.columns: stage = 4
-    elif 'ud3' in df.columns: stage = 3
-    elif 'ud2' in df.columns: stage = 2
-    elif 'ud1' in df.columns: stage = 1
-    
-    if stage == 0:
-        # Si no hay UD, intentamos con cuotas como fallback
-        if 'CUOTA_4' in df.columns and df['CUOTA_4'].count() > 0: stage = 4
-        elif 'CUOTA_3' in df.columns and df['CUOTA_3'].count() > 0: stage = 3
-        elif 'CUOTA_2' in df.columns and df['CUOTA_2'].count() > 0: stage = 2
-        elif 'CUOTA_1' in df.columns and df['CUOTA_1'].count() > 0: stage = 1
-        else:
-            raise ValueError("No se pudo determinar la etapa de predicción. Faltan columnas 'ud' o 'CUOTA'.")
+    numeric_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="median")), ("scaler", StandardScaler())])
+    categorical_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="most_frequent")), ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=False))])
 
-    df_clean = clean_data(df.copy())
-    df_featured = feature_engineering_by_stage(df_clean, stage)
-    
-    features = get_features_for_stage(stage)
-    
-    # Asegurarse que todas las features existan, si no, crearlas vacías
-    for col in features:
-        if col not in df_featured.columns:
-            df_featured[col] = 0
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ("num", numeric_transformer, numeric_features),
+            ("cat", categorical_transformer, categorical_features)
+        ],
+        remainder='passthrough'
+    )
 
-    X = df_featured[features]
-    X = pd.get_dummies(X, columns=['Carrera', 'Docente'], drop_first=True)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
     
-    return X
+    return X_train, X_test, y_train, y_test, preprocessor

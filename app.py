@@ -145,15 +145,14 @@ def predict_gradual_route():
         data_path = os.path.join(pred_dir, data_name)
         data_f.save(data_path)
 
-        os.makedirs(app.config["MODEL_FOLDER"], exist_ok=True)
         model_name = secure_filename(model_f.filename)
         model_path = os.path.join(app.config["MODEL_FOLDER"], model_name)
         model_f.save(model_path)
 
-        df_out, error = run_gradual_prediction(data_path, model_path)
+        # La función ahora devuelve (df_out, excel_path, error)
+        df_out, excel_path, error = run_gradual_prediction(data_path, model_path)
         
         if error:
-            # Manejar el error, por ejemplo, mostrándolo en la página
             return f"Ocurrió un error: {error}", 500
 
         table_html = df_out.to_html(classes="table table-striped table-hover", index=False)
@@ -161,14 +160,14 @@ def predict_gradual_route():
         return render_template(
             "prediction_results.html",
             table=table_html,
-            pred_file=None # La descarga del excel se puede añadir después
+            # Pasamos el nombre del archivo para que el botón de descarga funcione
+            pred_file=os.path.basename(excel_path)
         )
 
     return "Archivos inválidos o faltantes para la predicción gradual.", 400
-
 # --- Inicialización del Servidor ---
 if __name__ == "__main__":
-    # Asegura la creación de los directorios necesarios al iniciar
+    # Asegura la crescm-history-item:c%3A%5CUsers%5Cdanhv%5COneDrive%20-%20UNIVERSIDAD%20PRIVADA%20NORBERT%20WIENER%20S.A%5CNW%5CProyecto%20Predicci%C3%B3n%5CC%C3%B3digo%5Cml-webapp?%7B%22repositoryId%22%3A%22scm0%22%2C%22historyItemId%22%3A%222a99329c01d97d9187909d1d35a0a64a66c16b5b%22%2C%22historyItemParentId%22%3A%229193d307baac58bd8c985d670c15920cc7ee0e27%22%2C%22historyItemDisplayId%22%3A%222a99329%22%7Dación de los directorios necesarios al iniciar
     for d in ["uploads/training", "uploads/prediction", "models", "static/img"]:
         os.makedirs(d, exist_ok=True)
 
