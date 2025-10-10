@@ -1,31 +1,70 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>🔎 Proyecto de Predicción Estudiantil</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-  <h1>🔍 Bienvenido al Sistema de Predicción</h1>
+{% extends 'base.html' %}
+{% block title %}Proyecto de Predicción Estudiantil{% endblock %}
 
-  <h2>🚀 Entrenar un modelo desde Excel (.xlsx)</h2>
-  <form method="POST" action="/train" enctype="multipart/form-data">
-    <label for="train_file">Selecciona archivo de entrenamiento:</label>
-    <input type="file" name="train_file" accept=".xlsx,.xls" required>
-    <button type="submit">Entrenar modelo</button>
-  </form>
+{% block content %}
+<div class="container py-5">
 
-  <hr>
+  <div class="text-center mb-5">
+    <h1 class="display-5 text-primary fw-bold">
+      🔍 Bienvenido al Sistema de Predicción
+    </h1>
+    <p class="lead">
+      Utiliza los formularios a continuación para entrenar modelos o realizar nuevas predicciones.
+    </p>
+  </div>
 
-  <h2>📊 Realizar predicción con modelo entrenado</h2>
-  <form method="POST" action="/predict" enctype="multipart/form-data">
-    <label for="predict_file">Archivo con nuevos datos (.xlsx):</label>
-    <input type="file" name="predict_file" accept=".xlsx,.xls" required><br><br>
-    
-    <label for="model_file">Modelo entrenado (.pkl):</label>
-    <input type="file" name="model_file" accept=".pkl" required><br><br>
-    
-    <button type="submit">Realizar predicción</button>
-  </form>
-</body>
-</html>
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+      <h2 class="h5 mb-0"><i class="bi bi-rocket-takeoff-fill me-2"></i>1. Entrenar un modelo desde Excel (.xlsx)</h2>
+    </div>
+    <div class="card-body">
+      <form action="/train" method="post" enctype="multipart/form-data">
+        <div class="mb-3">
+          <label for="train-file-original" class="form-label">Selecciona archivo de entrenamiento:</label>
+          <input class="form-control" type="file" id="train-file-original" name="train_file" accept=".xlsx,.xls" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Entrenar Modelo</button>
+      </form>
+    </div>
+  </div>
+
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-info text-dark">
+        <h2 class="h5 mb-0"><i class="bi bi-graph-up-arrow me-2"></i>2. (NUEVO) Entrenamiento Gradual por Etapas</h2>
+    </div>
+    <div class="card-body">
+        <p class="card-text">Sube tus datos históricos (con columnas ud1 a ud4) para entrenar 4 modelos, uno por cada etapa del curso. Esto permitirá predicciones tempranas y adaptativas.</p>
+        <form action="/train_gradual" method="post" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label for="train_file_gradual" class="form-label">Sube el archivo de entrenamiento (.xlsx):</label>
+                <input class="form-control" type="file" id="train_file_gradual" name="train_file" required>
+            </div>
+            <button type="submit" class="btn btn-info">Iniciar Entrenamiento Gradual</button>
+        </form>
+    </div>
+  </div>
+
+
+  <div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+      <h2 class="h5 mb-0"><i class="bi bi-magic me-2"></i>3. Realizar predicción con modelo entrenado</h2>
+    </div>
+    <div class="card-body">
+      <form action="/predict" method="post" enctype="multipart/form-data">
+        <div class="mb-3">
+          <label for="predict-file" class="form-label">Archivo con nuevos datos (.xlsx):</label>
+          <input class="form-control" type="file" id="predict-file" name="predict_file" accept=".xlsx,.xls" required>
+        </div>
+        <div class="mb-3">
+          <label for="model-file" class="form-label">Modelo entrenado (.pkl):</label>
+          <input class="form-control" type="file" id="model-file" name="model_file" accept=".pkl" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Realizar Predicción</button>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

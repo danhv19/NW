@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1>Resultados del Entrenamiento Gradual</h1>
+    <p>Se han entrenado 4 modelos, uno para cada etapa del curso. A continuación se muestran las métricas de rendimiento y los gráficos de comportamiento.</p>
+
+    <div class="mt-5">
+        <h2>Análisis del Comportamiento del Estudiante</h2>
+        <div class="row">
+            {% for title, path in images.items() %}
+            <div class="col-md-6 text-center">
+                <h4>{{ title.replace('_', ' ') }}</h4>
+                <img src="{{ url_for('static', filename='img/' + path.split('/')[-1]) }}" class="img-fluid" alt="{{ title }}">
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="mt-5">
+        <h2>Métricas de Rendimiento de los Modelos</h2>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Etapa</th>
+                    <th>Accuracy</th>
+                    <th>Modelo Guardado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stage, data in results.items() %}
+                <tr>
+                    <td>{{ stage }}</td>
+                    <td>{{ "%.4f"|format(data.accuracy) }}</td>
+                    <td>{{ data.model_path }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <a href="/" class="btn btn-primary mt-3">Volver al Inicio</a>
+</div>
+{% endblock %}
