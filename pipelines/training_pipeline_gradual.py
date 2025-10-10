@@ -4,15 +4,12 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, classification_report
 import joblib
 import os
+import shutil
 
-# Importamos las funciones de preprocesamiento Y AHORA DE GRÁFICOS
 from pipelines.preprocessing_gradual import preprocess_for_gradual_training, clean_data
-from pipelines.plotting_gradual import generate_behavioral_plots # <-- AÑADIR ESTA LÍNEA
+from pipelines.plotting_gradual import generate_behavioral_plots
 
-def train_and_save_gradual_models(data_path, models_dir='models', static_dir='static/img'): # <-- AÑADIR static_dir
-    """
-    Entrena modelos, GENERA GRÁFICOS, y guarda los modelos.
-    """
+def train_and_save_gradual_models(data_path, models_dir='models', static_dir='static/img'):
     try:
         df = pd.read_excel(data_path)
     except Exception as e:
@@ -20,19 +17,18 @@ def train_and_save_gradual_models(data_path, models_dir='models', static_dir='st
 
     results = {}
     
-    # --- PASO NUEVO: Generar gráficos antes de entrenar ---
-    # Usamos una versión limpia del dataframe completo para los gráficos
     df_cleaned_for_plots = clean_data(df.copy())
-    # Añadimos la columna 'Estado_nota' original para los gráficos
     df_cleaned_for_plots['Estado_nota'] = df['Estado_nota']
     image_paths = generate_behavioral_plots(df_cleaned_for_plots, static_dir)
-    results['image_paths'] = image_paths # Guardamos las rutas para pasarlas a la web
-    # ---------------------------------------------------
+    results['image_paths'] = image_paths
 
-    # Iterar por cada etapa (UD1 a UD4)
+    # --- NUEVO: Variables para rastrear el mejor modelo ---
+    best_overall_accuracy = 0.0
+    best_model_path = ""
+    best_model_stage = 0
+    # ----------------------------------------------------
+
     for stage in range(1, 5):
-        print(f"--- Entrenando Modelo para Etapa {stage} ---")
-        
         try:
             X, y = preprocess_for_gradual_training(df, stage)
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
@@ -44,20 +40,35 @@ def train_and_save_gradual_models(data_path, models_dir='models', static_dir='st
             accuracy = accuracy_score(y_test, y_pred)
             report = classification_report(y_test, y_pred, output_dict=True)
             
-            print(f"Accuracy para Etapa {stage}: {accuracy:.4f}")
-            
             model_filename = f'modelo_gradual_ud{stage}.pkl'
             model_path = os.path.join(models_dir, model_filename)
             joblib.dump(model, model_path)
+
+            # --- NUEVO: Comparamos para encontrar el mejor modelo ---
+            if accuracy > best_overall_accuracy:
+                best_overall_accuracy = accuracy
+                best_model_path = model_path
+                best_model_stage = stage
+            # -------------------------------------------------------
             
             results[f'etapa_{stage}'] = {
                 'model_path': model_path,
                 'accuracy': accuracy,
                 'report': report
             }
-
         except Exception as e:
-            print(f"Error entrenando la etapa {stage}: {e}")
             results[f'etapa_{stage}'] = {'error': str(e)}
+
+    # --- NUEVO: Guardamos una copia del mejor modelo con un nombre genérico y lo añadimos a los resultados ---
+    if best_model_path:
+        best_model_generic_name = 'mejor_modelo_gradual.pkl'
+        best_model_generic_path = os.path.join(models_dir, best_model_generic_name)
+        shutil.copy(best_model_path, best_model_generic_path)
+        results['best_model'] = {
+            'path': best_model_generic_path,
+            'stage': best_model_stage,
+            'accuracy': best_overall_accuracy
+        }
+    # ------------------------------------------------------------------------------------------------------
 
     return results

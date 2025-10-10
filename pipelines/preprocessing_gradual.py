@@ -77,3 +77,40 @@ def preprocess_for_gradual_training(df, stage):
     X = pd.get_dummies(X, columns=['Carrera', 'Docente'], drop_first=True)
     
     return X, y
+
+# En pipelines/preprocessing_gradual.py
+
+def preprocess_for_gradual_prediction(df):
+    """
+    Preprocesa datos nuevos para predicción gradual, detectando la etapa automáticamente.
+    """
+    # Detectar la etapa basada en las columnas presentes
+    stage = 0
+    if 'ud4' in df.columns: stage = 4
+    elif 'ud3' in df.columns: stage = 3
+    elif 'ud2' in df.columns: stage = 2
+    elif 'ud1' in df.columns: stage = 1
+    
+    if stage == 0:
+        # Si no hay UD, intentamos con cuotas como fallback
+        if 'CUOTA_4' in df.columns and df['CUOTA_4'].count() > 0: stage = 4
+        elif 'CUOTA_3' in df.columns and df['CUOTA_3'].count() > 0: stage = 3
+        elif 'CUOTA_2' in df.columns and df['CUOTA_2'].count() > 0: stage = 2
+        elif 'CUOTA_1' in df.columns and df['CUOTA_1'].count() > 0: stage = 1
+        else:
+            raise ValueError("No se pudo determinar la etapa de predicción. Faltan columnas 'ud' o 'CUOTA'.")
+
+    df_clean = clean_data(df.copy())
+    df_featured = feature_engineering_by_stage(df_clean, stage)
+    
+    features = get_features_for_stage(stage)
+    
+    # Asegurarse que todas las features existan, si no, crearlas vacías
+    for col in features:
+        if col not in df_featured.columns:
+            df_featured[col] = 0
+
+    X = df_featured[features]
+    X = pd.get_dummies(X, columns=['Carrera', 'Docente'], drop_first=True)
+    
+    return X

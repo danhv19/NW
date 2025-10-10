@@ -5,6 +5,7 @@ import pandas as pd
 from pipelines.training_pipeline import run_training
 from pipelines.prediction_pipeline import run_prediction
 from pipelines.training_pipeline_gradual import train_and_save_gradual_models
+from pipelines.prediction_pipeline_gradual import run_gradual_prediction
 
 # --- Configuración de la Aplicación ---
 ALLOWED_EXTENSIONS = {"xlsx", "xls", "pkl"}
@@ -125,6 +126,45 @@ def download_model_file(filename: str):
         as_attachment=True,
     )
 
+
+
+
+    # ---------- NUEVA RUTA PARA PREDICCIÓN GRADUAL -----------------------------
+@app.route("/predict_gradual", methods=["POST"])
+def predict_gradual_route():
+    data_f = request.files.get("predict_file")
+    model_f = request.files.get("model_file")
+
+    if (
+        data_f and allowed_file(data_f.filename, {"xlsx", "xls"}) and
+        model_f and allowed_file(model_f.filename, {"pkl"})
+    ):
+        pred_dir = os.path.join(app.config["UPLOAD_FOLDER"], "prediction")
+        os.makedirs(pred_dir, exist_ok=True)
+        data_name = secure_filename(data_f.filename)
+        data_path = os.path.join(pred_dir, data_name)
+        data_f.save(data_path)
+
+        os.makedirs(app.config["MODEL_FOLDER"], exist_ok=True)
+        model_name = secure_filename(model_f.filename)
+        model_path = os.path.join(app.config["MODEL_FOLDER"], model_name)
+        model_f.save(model_path)
+
+        df_out, error = run_gradual_prediction(data_path, model_path)
+        
+        if error:
+            # Manejar el error, por ejemplo, mostrándolo en la página
+            return f"Ocurrió un error: {error}", 500
+
+        table_html = df_out.to_html(classes="table table-striped table-hover", index=False)
+
+        return render_template(
+            "prediction_results.html",
+            table=table_html,
+            pred_file=None # La descarga del excel se puede añadir después
+        )
+
+    return "Archivos inválidos o faltantes para la predicción gradual.", 400
 
 # --- Inicialización del Servidor ---
 if __name__ == "__main__":

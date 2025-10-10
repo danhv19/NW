@@ -3,37 +3,61 @@
 {% block content %}
 <div class="container mt-5">
     <h1>Resultados del Entrenamiento Gradual</h1>
-    <p>Se han entrenado 4 modelos, uno para cada etapa del curso. A continuación se muestran las métricas de rendimiento y los gráficos de comportamiento.</p>
+    <p>Se han entrenado 4 modelos, uno para cada etapa del curso. A continuación se muestran las métricas y los gráficos de comportamiento.</p>
 
+    {% if results.best_model %}
+    <div class="card text-center my-5 bg-light border-success shadow">
+        <div class="card-header bg-success text-white">
+            <h2 class="h4 mb-0">🏆 Mejor Modelo Entrenado 🏆</h2>
+        </div>
+        <div class="card-body">
+            <h5 class="card-title">El modelo de la Etapa {{ results.best_model.stage }} fue el más preciso.</h5>
+            <p class="card-text fs-5">
+                Accuracy: <strong>{{ "%.4f"|format(results.best_model.accuracy) }}</strong>
+            </p>
+            <p>Este modelo ha sido guardado como <strong>mejor_modelo_gradual.pkl</strong>. Úsalo en la nueva sección de predicción gradual.</p>
+            <a href="{{ url_for('download_model_file', filename=results.best_model.path.split('/')[-1].split('\\')[-1]) }}" class="btn btn-success btn-lg mt-3">
+                <i class="bi bi-download me-2"></i>Descargar el Mejor Modelo
+            </a>
+        </div>
+    </div>
+    {% endif %}
     <div class="mt-5">
         <h2>Análisis del Comportamiento del Estudiante</h2>
         <div class="row">
             {% for title, path in images.items() %}
             <div class="col-md-6 text-center">
                 <h4>{{ title.replace('_', ' ') }}</h4>
-                <img src="{{ url_for('static', filename='img/' + path.split('/')[-1]) }}" class="img-fluid" alt="{{ title }}">
+                <img src="{{ url_for('static', filename=path) }}" class="img-fluid" alt="{{ title }}">
             </div>
             {% endfor %}
         </div>
     </div>
 
     <div class="mt-5">
-        <h2>Métricas de Rendimiento de los Modelos</h2>
+        <h2>Métricas de Todos los Modelos</h2>
         <table class="table table-striped">
-            <thead>
+            <thead class="table-dark">
                 <tr>
                     <th>Etapa</th>
                     <th>Accuracy</th>
-                    <th>Modelo Guardado</th>
+                    <th>Modelo Guardado (Individual)</th>
                 </tr>
             </thead>
             <tbody>
-                {% for stage, data in results.items() %}
-                <tr>
-                    <td>{{ stage }}</td>
-                    <td>{{ "%.4f"|format(data.accuracy) }}</td>
-                    <td>{{ data.model_path }}</td>
-                </tr>
+                {% for stage_name, data in results.items() %}
+                    {% if stage_name != 'best_model' %}
+                    <tr>
+                        <td><strong>{{ stage_name }}</strong></td>
+                        <td>{{ "%.4f"|format(data.accuracy) }}</td>
+                        <td>
+                            <a href="{{ url_for('download_model_file', filename=data.model_path.split('/')[-1].split('\\')[-1]) }}" class="btn btn-outline-success btn-sm">
+                                <i class="bi bi-download me-1"></i>
+                                {{ data.model_path.split('/')[-1].split('\\')[-1] }}
+                            </a>
+                        </td>
+                    </tr>
+                    {% endif %}
                 {% endfor %}
             </tbody>
         </table>
