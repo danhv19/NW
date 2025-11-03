@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Resultados de Entrenamiento{% endblock %}
+{% block title %}Resultados de Entrenamiento SAT{% endblock %}
 {% block page_title %}Resultados del Entrenamiento para {{ target_unit }}{% endblock %}
 
 {% block content %}
@@ -10,7 +10,8 @@
     <div class="card-body p-4">
         <h5 class="card-title">Métricas de Rendimiento (3 Modelos)</h5>
         <p class="text-muted">
-            Se entrenaron 3 modelos y se seleccionó el mejor (mayor "accuracy") para ser guardado como 
+            Se entrenaron 3 modelos y se seleccionó el mejor (<strong>{{ metrics.best_model }}</strong>) 
+            para ser guardado como 
             <code class="fw-bold text-dark">{{ model_filename }}</code>.
         </p>
         <div class="table-responsive">
@@ -25,8 +26,8 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for model_name, metric_values in metrics.items() %}
-                    <tr>
+                    {% for model_name, metric_values in metrics.items() if model_name != 'best_model' %}
+                    <tr class{% if model_name == metrics.best_model %} table-success fw-bold{% endif %}>
                         <td><strong>{{ model_name }}</strong></td>
                         <td>{{ "%.2f"|format(metric_values.accuracy * 100) }}%</td>
                         <td>{{ "%.2f"|format(metric_values.precision_aprobado * 100) }}%</td>
@@ -37,22 +38,10 @@
                 </tbody>
             </table>
         </div>
-    </div>
-</div>
-
-<!-- 
-    Sección de Gráficos Oculta Temporalmente. 
-    Para reactivarla, descomente esto y solucione el error en 'plotting_gradual.py'
--->
-<div class="card shadow-sm">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="bi bi-pie-chart-fill me-2"></i>Análisis Exploratorio de Datos (EDA)</h5>
-    </div>
-    <div class="card-body">
-        <p class="text-center text-muted">
-            La generación de gráficos está desactivada temporalmente para solucionar un error de importación.
-            (Referencia: <code>plotting_gradual.py</code>)
-        </p>
+        <hr class="my-4">
+        <a href="/train_gradual" class="btn btn-outline-primary">
+            <i class="bi bi-arrow-left"></i> Entrenar otro modelo
+        </a>
     </div>
 </div>
 {% endblock %}

@@ -5,8 +5,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.metrics import accuracy_score, classification_report
-from .preprocessing import preprocess_historical
-from .plotting import plot_historical_results
+# --- CORRECCIÓN DE IMPORTACIÓN ---
+from .historical_preprocessing import preprocess_historical # <--- Renombrado
+from .historical_plotting import plot_historical_results # <--- Renombrado
 
 # --- Definición de Características ---
 # Columnas que esperamos del archivo "Data - consolidada.xlsx"

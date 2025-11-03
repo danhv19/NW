@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.metrics import accuracy_score, classification_report
-from .preprocessing_gradual import preprocess_gradual
+from .preprocessing_gradual import preprocess_gradual # <--- Usa el preprocesador gradual
 
 # --- Definición de Características Unificadas ---
 # Estas son las características de MATRÍCULA
@@ -67,16 +67,23 @@ def run_gradual_training(filepath, target_unit, models_folder):
     
     # Asegurarse de que el archivo de entrenamiento tenga todas las columnas necesarias
     if TARGET_COLUMN_NAME not in df.columns:
-        raise ValueError(f"El archivo de entrenamiento no tiene la columna objetivo '{TARGET_COLUMN_NAME}'.")
+        # Intentar con PROMEDIO_CURSO si U1-U4 no están (caso especial para data consolidada)
+        if 'PROMEDIO_CURSO' in df.columns and target_unit == 'U1':
+            print(f"Advertencia: No se encontró '{TARGET_COLUMN_NAME}', usando 'PROMEDIO_CURSO' para entrenar el modelo U1.")
+            TARGET_COLUMN_NAME = 'PROMEDIO_CURSO'
+        else:
+            raise ValueError(f"El archivo de entrenamiento no tiene la columna objetivo '{TARGET_COLUMN_NAME}'.")
     
+    # Verificar todas las características
+    available_features = []
     for f in config['features']:
-        if f not in df.columns and f in BASE_FEATURES:
-            raise ValueError(f"El archivo de entrenamiento no tiene la característica base '{f}'.")
-        if f in ['U1', 'U2', 'U3'] and f not in df.columns:
+        if f in df.columns:
+            available_features.append(f)
+        elif f in ['U1', 'U2', 'U3'] and f not in df.columns:
              raise ValueError(f"Para entrenar {target_unit}, el archivo debe tener la columna '{f}'.")
+        # Ignorar si falta una característica base (ej. PROCEDENCIA)
 
-
-    FEATURES = config['features']
+    FEATURES = available_features
     print(f"Objetivo: {TARGET_COLUMN_NAME}")
     print(f"Características usadas: {FEATURES}")
 
@@ -97,7 +104,7 @@ def run_gradual_training(filepath, target_unit, models_folder):
     y = df[TARGET]
 
     # Usar el preprocesador gradual
-    X_processed, preprocessor = preprocess_gradual(X, target_unit)
+    X_processed, preprocessor = preprocess_gradual(X) # <--- Ya no necesita target_unit
     
     # Guardar el preprocesador específico para esta unidad
     preprocessor_filename = f"preprocessor_gradual_{target_unit}.pkl"

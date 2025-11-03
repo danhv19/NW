@@ -5,32 +5,31 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 
-def preprocess_gradual(X_in):
+def preprocess_historical(X_in):
     """
-    Preprocesa los datos para el pipeline gradual (U1, U2, U3, U4).
-    Este preprocesador es universal: simplemente trata todas las columnas
-    numéricas y categóricas que recibe.
+    Preprocesa los datos para el análisis histórico (Proceso 1).
     """
     # Copiar para evitar SettingWithCopyWarning
     X = X_in.copy()
-    
-    # Convertir todas las columnas de cuotas a numérico
+
+    # Convertir todas las columnas de cuotas a numérico, forzando errores a NaN
     for col in ['CUOTA_1', 'CUOTA_2', 'CUOTA_3', 'CUOTA_4', 'CUOTA_5']:
         if col in X.columns:
+            # Asignar 1 a 'COBRADO', 0 a 'PENDIENTE', y NaN a otros
             X[col] = X[col].map({'COBRADO': 1, 'PENDIENTE': 0}).fillna(np.nan)
             
     # Identificar columnas numéricas y categóricas
     numeric_features = X.select_dtypes(include=np.number).columns.tolist()
     categorical_features = X.select_dtypes(exclude=np.number).columns.tolist()
 
-    print(f"[Gradual Preprocessing] Numéricas: {numeric_features}")
-    print(f"[Gradual Preprocessing] Categóricas: {categorical_features}")
+    print(f"[Histórico Preprocessing] Numéricas: {numeric_features}")
+    print(f"[Histórico Preprocessing] Categóricas: {categorical_features}")
 
     # --- Creación de Pipelines de Preprocesamiento ---
     
     # Pipeline para variables numéricas:
     numeric_transformer = Pipeline(steps=[
-        ('imputer', SimpleImputer(strategy='constant', fill_value=0)), # Rellenar cuotas/asistencia/notas faltantes con 0
+        ('imputer', SimpleImputer(strategy='constant', fill_value=0)), # Rellenar cuotas/asistencia faltantes con 0
         ('scaler', StandardScaler())
     ])
 
@@ -46,10 +45,10 @@ def preprocess_gradual(X_in):
             ('num', numeric_transformer, numeric_features),
             ('cat', categorical_transformer, categorical_features)
         ],
-        remainder='passthrough'
+        remainder='passthrough' 
     )
 
     X_processed = preprocessor.fit_transform(X)
     
-    print(f"Preprocesamiento gradual completado.")
+    print("Preprocesamiento histórico completado.")
     return X_processed, preprocessor

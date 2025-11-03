@@ -3,7 +3,7 @@ from flask import Flask, render_template, request, redirect, url_for, send_from_
 from werkzeug.utils import secure_filename
 import pandas as pd
 
-# Importar los pipelines
+# Importar los pipelines con nombres claros
 from pipelines.historical_analysis_pipeline import run_historical_analysis
 from pipelines.training_pipeline_gradual import run_gradual_training
 from pipelines.prediction_pipeline_gradual import run_gradual_prediction
