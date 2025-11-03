@@ -1,81 +1,137 @@
 import pandas as pd
+import joblib
+import os
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.metrics import accuracy_score
-from sklearn.pipeline import Pipeline
-import joblib
-import os
+from sklearn.metrics import accuracy_score, classification_report
+from .preprocessing_gradual import preprocess_gradual
+# from .plotting_gradual import plot_gradual_results # <--- LÍNEA COMENTADA
 
-from pipelines.preprocessing_gradual import preprocess_for_gradual_training
-from pipelines.plotting_gradual import generate_behavioral_plots
-
-def train_and_save_gradual_models(data_path, models_dir='models', static_dir='static/img'):
+def run_gradual_training(filepath, target_unit, models_folder, plots_folder):
     """
-    Entrena, compara y guarda el mejor modelo para cada una de las 4 etapas.
-    """
-    try:
-        df = pd.read_excel(data_path)
-    except Exception as e:
-        return {"error": f"No se pudo leer el archivo Excel: {e}"}
-
-    results = {}
+    Entrena modelos para una unidad específica (U1, U2, U3, o U4).
     
+    Args:
+        filepath (str): Ruta al archivo de datos de entrenamiento.
+        target_unit (str): La unidad a predecir ('U1', 'U2', 'U3', 'U4').
+        models_folder (str): Carpeta donde se guardarán los modelos.
+        plots_folder (str): Carpeta donde se guardarán los gráficos.
+    """
+    print(f"--- Iniciando Entrenamiento Gradual para: {target_unit} ---")
+
     try:
-        image_paths = generate_behavioral_plots(df.copy(), static_dir)
-        results['image_paths'] = image_paths
+        df = pd.read_excel(filepath)
     except Exception as e:
-        print(f"Error generando gráficos: {e}")
-        results['image_paths'] = {}
-
-    for stage in range(1, 5):
-        print(f"\n--- PROCESANDO ETAPA {stage} ---")
+        print(f"Error leyendo el archivo: {e}. Intentando con CSV...")
         try:
-            X_train, X_test, y_train, y_test, preprocessor = preprocess_for_gradual_training(df, stage)
+            df = pd.read_csv(filepath)
+        except Exception as e_csv:
+            raise Exception(f"No se pudo leer el archivo ni como Excel ni como CSV: {e_csv}")
 
-            models_to_test = {
-                "Regresión Logística": LogisticRegression(random_state=42, max_iter=1000, class_weight='balanced'),
-                "Random Forest": RandomForestClassifier(random_state=42, n_estimators=100, class_weight='balanced'),
-                "Gradient Boosting": GradientBoostingClassifier(random_state=42, n_estimators=100)
-            }
-            
-            best_accuracy_for_stage = 0.0
-            best_pipeline_for_stage = None
-            best_model_name_for_stage = ""
+    # --- Definición de Características y Objetivo ---
+    # Características base (datos de matrícula)
+    BASE_FEATURES = [
+        'EDAD', 'MODALIDAD', 'Carrera', 'CURSO', 
+        'TIPOSESION', 'SECCIÓN', 'DOCENTE', 'PERIODO',
+        'PORCENTAJE_asistencia', 'CUOTA_1', 'CUOTA_2', 'CUOTA_3', 'CUOTA_4', 'CUOTA_5'
+    ]
+    
+    # Diccionario para manejar la lógica gradual
+    training_map = {
+        'U1': {
+            'target_col': 'U1',
+            'features': BASE_FEATURES
+        },
+        'U2': {
+            'target_col': 'U2',
+            'features': BASE_FEATURES + ['U1']
+        },
+        'U3': {
+            'target_col': 'U3',
+            'features': BASE_FEATURES + ['U1', 'U2']
+        },
+        'U4': {
+            'target_col': 'U4',
+            'features': BASE_FEATURES + ['U1', 'U2', 'U3']
+        }
+    }
 
-            for model_name, model in models_to_test.items():
-                pipeline = Pipeline(steps=[
-                    ('preprocessor', preprocessor),
-                    ('classifier', model)
-                ])
+    if target_unit not in training_map:
+        raise ValueError(f"Unidad objetivo '{target_unit}' no es válida. Debe ser 'U1', 'U2', 'U3', o 'U4'.")
 
-                pipeline.fit(X_train, y_train)
-                
-                y_pred = pipeline.predict(X_test)
-                accuracy = accuracy_score(y_test, y_pred)
-                print(f"  - Modelo: {model_name}, Accuracy: {accuracy:.4f}")
+    config = training_map[target_unit]
+    TARGET_COLUMN = config['target_col']
+    FEATURES = [f for f in config['features'] if f in df.columns]
 
-                if accuracy > best_accuracy_for_stage:
-                    best_accuracy_for_stage = accuracy
-                    best_pipeline_for_stage = pipeline
-                    best_model_name_for_stage = model_name
-            
-            if best_pipeline_for_stage:
-                print(f"🏆 Ganador de la Etapa {stage}: {best_model_name_for_stage} con Accuracy de {best_accuracy_for_stage:.4f}")
-                model_filename = f'modelo_gradual_ud{stage}.pkl'
-                model_path = os.path.join(models_dir, model_filename)
-                joblib.dump(best_pipeline_for_stage, model_path)
-                
-                results[f'Etapa {stage}'] = {
-                    'model_path': model_path,
-                    'accuracy': best_accuracy_for_stage,
-                    'best_model_name': best_model_name_for_stage
-                }
-            else:
-                results[f'Etapa {stage}'] = {'error': 'No se pudo determinar un mejor modelo.'}
+    print(f"Objetivo: {TARGET_COLUMN}")
+    print(f"Características usadas: {FEATURES}")
 
-        except Exception as e:
-            print(f"Error procesando la Etapa {stage}: {e}")
-            results[f'Etapa {stage}'] = {'error': str(e)}
+    # --- Preprocesamiento ---
+    # Crear la variable objetivo binaria (Aprobado/Desaprobado)
+    df[TARGET_COLUMN] = pd.to_numeric(df[TARGET_COLUMN], errors='coerce')
+    df.dropna(subset=[TARGET_COLUMN], inplace=True) # Eliminar filas donde el objetivo es nulo
+    df[f'{TARGET_COLUMN}_Aprobado'] = (df[TARGET_COLUMN] > 10.5).astype(int)
+    
+    TARGET = f'{TARGET_COLUMN}_Aprobado'
+    
+    # Asegurarse de que las características de notas (si se usan) sean numéricas
+    for col in ['U1', 'U2', 'U3']:
+        if col in FEATURES:
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
-    return results
+    X = df[FEATURES]
+    y = df[TARGET]
+
+    # Preprocesar los datos
+    X_processed, preprocessor = preprocess_gradual(X)
+    
+    # Guardar el preprocesador
+    preprocessor_filename = f"preprocessor_gradual_{target_unit}.pkl"
+    joblib.dump(preprocessor, os.path.join(models_folder, preprocessor_filename))
+    print(f"Preprocesador guardado en: {preprocessor_filename}")
+
+    # --- División de Datos ---
+    X_train, X_test, y_train, y_test = train_test_split(X_processed, y, test_size=0.2, random_state=42, stratify=y)
+
+    # --- Entrenamiento de 3 Modelos ---
+    models = {
+        'LogisticRegression': LogisticRegression(random_state=42, max_iter=1000, class_weight='balanced'),
+        'RandomForest': RandomForestClassifier(random_state=42, class_weight='balanced'),
+        'GradientBoosting': GradientBoostingClassifier(random_state=42)
+    }
+
+    metrics = {}
+    best_model = None
+    best_accuracy = 0.0
+
+    print("\n--- Entrenando Modelos ---")
+    for name, model in models.items():
+        print(f"Entrenando {name}...")
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        accuracy = accuracy_score(y_test, y_pred)
+        report = classification_report(y_test, y_pred, output_dict=True)
+        
+        metrics[name] = {
+            'accuracy': accuracy,
+            'precision_aprobado': report.get('1', {}).get('precision', 0),
+            'recall_aprobado': report.get('1', {}).get('recall', 0),
+            'f1_aprobado': report.get('1', {}).get('f1-score', 0)
+        }
+        
+        if accuracy > best_accuracy:
+            best_accuracy = accuracy
+            best_model = model
+
+    # Guardar el mejor modelo
+    model_filename = f"modelo_gradual_{target_unit}.pkl"
+    joblib.dump(best_model, os.path.join(models_folder, model_filename))
+    print(f"Mejor modelo ({type(best_model).__name__}) guardado como: {model_filename}")
+
+    # --- Generación de Gráficos ---
+    # plots = plot_gradual_results(df, target_unit, plots_folder) # <--- LÍNEA COMENTADA
+    plots = {} # <--- LÍNEA AÑADIDA para que 'plots' exista
+
+    return metrics, plots, model_filename
+

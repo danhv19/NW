@@ -1,105 +1,64 @@
 import pandas as pd
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
 
-def clean_data(df):
+def preprocess_gradual(X):
     """
-    Realiza la limpieza básica de datos.
+    Preprocesa los datos para los modelos graduales.
+    Detecta automáticamente las columnas numéricas y categóricas.
     """
-    if 'Asistencia' in df.columns and df['Asistencia'].dtype == 'object':
-        df['Asistencia'] = df['Asistencia'].str.replace('%', '', regex=False).astype(float) / 100.0
-
-    for col in ['fecha_matricula', 'fecha_inicio', 'fecha_fin']:
-        if col in df.columns:
-            df[col] = pd.to_datetime(df[col], dayfirst=True, errors='coerce')
-            
-    for col in ['CUOTA_1', 'CUOTA_2', 'CUOTA_3', 'CUOTA_4', 'CUOTA_5']:
-        if col in df.columns:
-            df[col] = df[col].map({'COBRADO': 1, 'PENDIENTE': 0}).fillna(0)
-
-    if 'Estado_nota' in df.columns:
-        df['target'] = df['Estado_nota'].map({'Aprobado': 1, 'Desaprobado': 0})
-        
-    return df
-
-def feature_engineering_by_stage(df, stage):
-    """
-    Crea características específicas para cada etapa de forma segura.
-    """
-    if 'fecha_matricula' in df.columns and 'fecha_inicio' in df.columns:
-        df['dias_anticipacion_matricula'] = (df['fecha_inicio'] - df['fecha_matricula']).dt.days
-    else:
-        df['dias_anticipacion_matricula'] = 0
-
-    if stage >= 1:
-        df['cuotas_pagadas_ud1'] = df.get('CUOTA_1', 0)
-    if stage >= 2:
-        df['cuotas_pagadas_ud2'] = df.get('CUOTA_1', 0) + df.get('CUOTA_2', 0)
-    if stage >= 3:
-        df['cuotas_pagadas_ud3'] = df.get('CUOTA_1', 0) + df.get('CUOTA_2', 0) + df.get('CUOTA_3', 0)
-        df['mejora_ud2'] = df.get('ud2', 0) - df.get('ud1', 0)
-    if stage >= 4:
-        df['cuotas_pagadas_ud4'] = df.get('CUOTA_1', 0) + df.get('CUOTA_2', 0) + df.get('CUOTA_3', 0) + df.get('CUOTA_4', 0)
-        df['mejora_ud3'] = df.get('ud3', 0) - df.get('ud2', 0)
-        
-    return df
-
-def get_features_for_stage(stage):
-    """
-    Define las características correctas para cada ETAPA DE PREDICCIÓN.
-    """
-    base_features = ['Carrera', 'Docente', 'Asistencia', 'Ciclo', 'dias_anticipacion_matricula']
     
-    # Modelo 1: Se entrena SIN NOTAS. Se usa para predecir ANTES de la UD1.
-    if stage == 1:
-        return base_features + ['cuotas_pagadas_ud1']
-        
-    # Modelo 2: Se entrena CON la nota de UD1. Se usa para predecir DESPUÉS de la UD1.
-    elif stage == 2:
-        return base_features + ['cuotas_pagadas_ud2', 'ud1']
-        
-    # Modelo 3: Se entrena CON las notas de UD1 y UD2. Se usa para predecir DESPUÉS de la UD2.
-    elif stage == 3:
-        return base_features + ['cuotas_pagadas_ud3', 'ud1', 'ud2', 'mejora_ud2']
-        
-    # Modelo 4: Se entrena CON las notas de UD1, UD2 y UD3. Se usa para predecir DESPUÉS de la UD3.
-    elif stage == 4:
-        return base_features + ['cuotas_pagadas_ud4', 'ud1', 'ud2', 'ud3', 'mejora_ud2', 'mejora_ud3']
-        
-    return []
-
-def preprocess_for_gradual_training(df, stage):
-    """
-    Orquesta el preprocesamiento para el entrenamiento y devuelve los datos y el preprocesador.
-    """
-    df_clean = clean_data(df.copy())
-    df_featured = feature_engineering_by_stage(df_clean, stage)
+    # Identificar columnas numéricas y categóricas
+    # Características de notas que podrían estar presentes
+    note_features = ['U1', 'U2', 'U3', 'U4']
     
-    features_to_use = get_features_for_stage(stage)
+    # Características de pago
+    payment_features = ['CUOTA_1', 'CUOTA_2', 'CUOTA_3', 'CUOTA_4', 'CUOTA_5']
     
-    if 'target' not in df_featured.columns:
-        raise ValueError("La columna 'Estado_nota' (mapeada a 'target') no se encontró.")
-        
-    X = df_featured[[col for col in features_to_use if col in df_featured.columns]]
-    y = df_featured['target']
+    # Otras características numéricas conocidas
+    other_numeric = ['EDAD', 'PERIODO', 'ASISTENCIAS', 'PORCENTAJE_asistencia']
+    
+    # Construir lista de todas las posibles características numéricas
+    numeric_features = [col for col in X.columns if col in note_features + payment_features + other_numeric]
+    
+    # Las características categóricas son todas las que no son numéricas
+    categorical_features = [col for col in X.columns if col not in numeric_features]
 
-    numeric_features = X.select_dtypes(include='number').columns.tolist()
-    categorical_features = X.select_dtypes(exclude='number').columns.tolist()
+    print(f"[Preprocesador] Numéricas detectadas: {numeric_features}")
+    print(f"[Preprocesador] Categóricas detectadas: {categorical_features}")
 
-    numeric_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="median")), ("scaler", StandardScaler())])
-    categorical_transformer = Pipeline(steps=[("imputer", SimpleImputer(strategy="most_frequent")), ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=False))])
+    # --- Crear Pipelines de Transformación ---
 
+    # Pipeline para datos numéricos:
+    # 1. Imputar valores faltantes (NaN) con la mediana.
+    # 2. Escalar los datos para que tengan media 0 y desviación 1.
+    numeric_transformer = Pipeline(steps=[
+        ('imputer', SimpleImputer(strategy='median')),
+        ('scaler', StandardScaler())
+    ])
+
+    # Pipeline para datos categóricos:
+    # 1. Imputar valores faltantes con la etiqueta 'Desconocido'.
+    # 2. Aplicar One-Hot Encoding (convertir 'Carrera_A', 'Carrera_B' en columnas 0/1).
+    #    handle_unknown='ignore' es crucial para que la predicción no falle si ve una categoría nueva.
+    categorical_transformer = Pipeline(steps=[
+        ('imputer', SimpleImputer(strategy='constant', fill_value='Desconocido')),
+        ('onehot', OneHotEncoder(handle_unknown='ignore'))
+    ])
+
+    # --- Combinar Pipelines con ColumnTransformer ---
+    # Este objeto aplica el pipeline correcto a la columna correcta.
     preprocessor = ColumnTransformer(
         transformers=[
-            ("num", numeric_transformer, numeric_features),
-            ("cat", categorical_transformer, categorical_features)
+            ('num', numeric_transformer, numeric_features),
+            ('cat', categorical_transformer, categorical_features)
         ],
-        remainder='passthrough'
+        remainder='passthrough' # Dejar pasar cualquier columna no especificada (aunque no debería haber)
     )
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+    # Ajustar el preprocesador y transformar los datos
+    X_processed = preprocessor.fit_transform(X)
     
-    return X_train, X_test, y_train, y_test, preprocessor
+    return X_processed, preprocessor

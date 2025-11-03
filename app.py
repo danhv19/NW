@@ -1,174 +1,180 @@
-from flask import Flask, render_template, request, send_file, url_for
-from werkzeug.utils import secure_filename
 import os
-import pandas as pd
+from flask import Flask, render_template, request, redirect, url_for, send_from_directory
+from werkzeug.utils import secure_filename
 from pipelines.training_pipeline import run_training
 from pipelines.prediction_pipeline import run_prediction
-from pipelines.training_pipeline_gradual import train_and_save_gradual_models
+# Importamos las nuevas pipelines graduales
+from pipelines.training_pipeline_gradual import run_gradual_training
 from pipelines.prediction_pipeline_gradual import run_gradual_prediction
 
-# --- Configuración de la Aplicación ---
-ALLOWED_EXTENSIONS = {"xlsx", "xls", "pkl"}
 app = Flask(__name__)
-app.config["UPLOAD_FOLDER"] = "uploads"
-app.config["MODEL_FOLDER"] = "models"
 
+# --- Configuración de Carpetas ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+UPLOAD_FOLDER_TRAIN = os.path.join(BASE_DIR, 'uploads', 'training')
+UPLOAD_FOLDER_PREDICT = os.path.join(BASE_DIR, 'uploads', 'prediction')
+MODELS_FOLDER = os.path.join(BASE_DIR, 'models')
+STATIC_IMG_FOLDER = os.path.join(BASE_DIR, 'static', 'img')
 
-# --- Funciones de Utilidad ---
-def allowed_file(filename: str, allowed: set) -> bool:
-    """Valida la extensión del archivo."""
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in allowed
+app.config['UPLOAD_FOLDER_TRAIN'] = UPLOAD_FOLDER_TRAIN
+app.config['UPLOAD_FOLDER_PREDICT'] = UPLOAD_FOLDER_PREDICT
+app.config['MODELS_FOLDER'] = MODELS_FOLDER
+app.config['STATIC_IMG_FOLDER'] = STATIC_IMG_FOLDER
 
+# Asegurarse de que las carpetas existan
+os.makedirs(UPLOAD_FOLDER_TRAIN, exist_ok=True)
+os.makedirs(UPLOAD_FOLDER_PREDICT, exist_ok=True)
+os.makedirs(MODELS_FOLDER, exist_ok=True)
+os.makedirs(STATIC_IMG_FOLDER, exist_ok=True)
 
 # --- Rutas Principales ---
-@app.route("/")
+
+@app.route('/')
 def index():
-    return render_template("index.html")
+    """Página de inicio que muestra las opciones."""
+    return render_template('index.html')
 
-@app.route("/train", methods=["POST"])
-def train():
-    """Ruta para el entrenamiento de modelo original."""
-    f = request.files.get("train_file")
-    if f and allowed_file(f.filename, {"xlsx", "xls"}):
-        safe_name = secure_filename(f.filename)
-        train_dir = os.path.join(app.config["UPLOAD_FOLDER"], "training")
-        os.makedirs(train_dir, exist_ok=True)
-        path = os.path.join(train_dir, safe_name)
-        f.save(path)
+# --- Rutas de Entrenamiento ---
 
-        summary, model_fname, plots = run_training(path)
-        return render_template(
-            "train_results.html",
-            results=summary,
-            model_name=model_fname,
-            plots=plots,
-        )
-    return "Archivo de entrenamiento no válido.", 400
-
-@app.route('/train_gradual', methods=['POST'])
-def train_gradual_route():
-    """Ruta para el entrenamiento de modelo gradual por etapas."""
-    if 'train_file' not in request.files:
-        return "No se encontró el archivo", 400
+@app.route('/train', methods=['GET', 'POST'])
+def train_model():
+    """
+    Ruta para entrenar el modelo de predicción de PROMEDIO FINAL.
+    """
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            return redirect(request.url)
+        file = request.files['file']
+        if file.filename == '':
+            return redirect(request.url)
+        if file:
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER_TRAIN'], filename)
+            file.save(filepath)
+            
+            try:
+                # Ejecutar el pipeline de entrenamiento
+                metrics, plots = run_training(filepath, app.config['MODELS_FOLDER'], app.config['STATIC_IMG_FOLDER'])
+                return render_template('train_results.html', metrics=metrics, plots=plots)
+            except Exception as e:
+                return f"Error durante el entrenamiento: {str(e)}"
     
-    file = request.files['train_file']
-    if file.filename == '':
-        return "No se seleccionó ningún archivo", 400
+    # Si es GET, solo muestra la página de subida
+    return render_template('train.html') # Asumiremos que existe un train.html
 
-    if file and (file.filename.endswith('.xlsx')):
-        filename = secure_filename(file.filename)
-        train_data_path = os.path.join(app.config['UPLOAD_FOLDER'], 'training', filename)
-        file.save(train_data_path)
+@app.route('/train_gradual', methods=['GET', 'POST'])
+def train_gradual_model():
+    """
+    NUEVA RUTA DE ENTRENAMIENTO GRADUAL
+    Entrena un modelo específico para una unidad (U1, U2, U3, U4)
+    basado en los datos históricos.
+    """
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            return redirect(request.url)
+        file = request.files['file']
+        # NUEVO: Obtenemos la unidad que el usuario desea entrenar
+        target_unit = request.form.get('target_unit') 
         
-        training_results = train_and_save_gradual_models(train_data_path)
-        
-        image_paths_raw = training_results.pop('image_paths', {})
-        
-        # Limpia las rutas de las imágenes para que sean compatibles con la web
-        images_cleaned = {
-            title: path.replace('\\', '/').replace('static/', '') 
-            for title, path in image_paths_raw.items()
-        }
-        
-        return render_template('train_results_gradual.html', 
-                               results=training_results,
-                               images=images_cleaned)
-    else:
-        return "Formato de archivo no válido. Por favor, sube un .xlsx", 400
+        if file.filename == '' or not target_unit:
+            return "Error: No se seleccionó archivo o unidad de destino.", 400
+            
+        if file:
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER_TRAIN'], filename)
+            file.save(filepath)
+            
+            try:
+                # Ejecutamos el pipeline de entrenamiento gradual
+                metrics, plots, model_filename = run_gradual_training(
+                    filepath, 
+                    target_unit, 
+                    app.config['MODELS_FOLDER'], 
+                    app.config['STATIC_IMG_FOLDER']
+                )
+                return render_template('train_results_gradual.html', 
+                                       metrics=metrics, 
+                                       plots=plots, 
+                                       model_filename=model_filename, 
+                                       target_unit=target_unit)
+            except Exception as e:
+                return f"Error durante el entrenamiento gradual: {str(e)}"
+    
+    # Si es GET, muestra la página de subida para entrenamiento gradual
+    return render_template('train_gradual.html') # Asumiremos que existe un train_gradual.html
 
-@app.route("/predict", methods=["POST"])
+# --- Rutas de Predicción ---
+
+@app.route('/predict', methods=['GET', 'POST'])
 def predict():
-    """Ruta para realizar predicciones con un modelo."""
-    data_f = request.files.get("predict_file")
-    model_f = request.files.get("model_file")
+    """
+    Ruta para predecir el PROMEDIO FINAL con el modelo principal.
+    """
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            return redirect(request.url)
+        file = request.files['file']
+        if file.filename == '':
+            return redirect(request.url)
+        if file:
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER_PREDICT'], filename)
+            file.save(filepath)
+            
+            try:
+                # Ejecutar el pipeline de predicción
+                results_df, results_path = run_prediction(filepath, app.config['MODELS_FOLDER'], app.config['UPLOAD_FOLDER_PREDICT'])
+                return render_template('prediction_results.html', 
+                                       tables=[results_df.to_html(classes='data', header="true", index=False)], 
+                                       results_path=results_path)
+            except Exception as e:
+                return f"Error durante la predicción: {str(e)}"
+    
+    # Si es GET, solo muestra la página de subida
+    return render_template('predict.html') # Asumiremos que existe un predict.html
 
-    if (
-        data_f and allowed_file(data_f.filename, {"xlsx", "xls"}) and
-        model_f and allowed_file(model_f.filename, {"pkl"})
-    ):
-        pred_dir = os.path.join(app.config["UPLOAD_FOLDER"], "prediction")
-        os.makedirs(pred_dir, exist_ok=True)
-        data_name = secure_filename(data_f.filename)
-        data_path = os.path.join(pred_dir, data_name)
-        data_f.save(data_path)
+@app.route('/predict_gradual', methods=['GET', 'POST'])
+def predict_gradual():
+    """
+    NUEVA RUTA DE PREDICCIÓN GRADUAL
+    Detecta automáticamente qué unidad predecir (U1, U2, U3, U4)
+    basado en las columnas de notas presentes en el archivo subido.
+    """
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            return redirect(request.url)
+        file = request.files['file']
+        if file.filename == '':
+            return redirect(request.url)
+        if file:
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER_PREDICT'], filename)
+            file.save(filepath)
+            
+            try:
+                # Ejecutar el pipeline de predicción gradual "inteligente"
+                results_df, results_path, prediction_target = run_gradual_prediction(
+                    filepath, 
+                    app.config['MODELS_FOLDER'], 
+                    app.config['UPLOAD_FOLDER_PREDICT']
+                )
+                
+                return render_template('prediction_results_gradual.html', 
+                                       tables=[results_df.to_html(classes='data', header="true", index=False)], 
+                                       results_path=results_path,
+                                       prediction_target=prediction_target)
+            except Exception as e:
+                return f"Error durante la predicción gradual: {str(e)}"
+    
+    # Si es GET, solo muestra la página de subida
+    return render_template('predict_gradual.html') # Asumiremos que existe predict_gradual.html
 
-        os.makedirs(app.config["MODEL_FOLDER"], exist_ok=True)
-        model_name = secure_filename(model_f.filename)
-        model_path = os.path.join(app.config["MODEL_FOLDER"], model_name)
-        model_f.save(model_path)
+# --- Ruta para descargar resultados ---
 
-        df_out, excel_path = run_prediction(data_path, model_path)
-        table_html = df_out.to_html(classes="table table-striped table-hover", index=False)
+@app.route('/uploads/prediction/<filename>')
+def uploaded_file(filename):
+    """Permite descargar el archivo de resultados de predicción."""
+    return send_from_directory(app.config['UPLOAD_FOLDER_PREDICT'], filename)
 
-        return render_template(
-            "prediction_results.html",
-            table=table_html,
-            pred_file=os.path.basename(excel_path),
-        )
-
-    return "Archivos inválidos o faltantes.", 400
-
-
-# --- Rutas de Descarga ---
-@app.route("/download/prediction/<filename>")
-def download_prediction_file(filename: str):
-    """Descarga el archivo de predicción resultante."""
-    return send_file(
-        os.path.join("uploads", "prediction", filename),
-        as_attachment=True,
-    )
-
-@app.route("/download/model/<filename>")
-def download_model_file(filename: str):
-    """Descarga un archivo de modelo entrenado."""
-    return send_file(
-        os.path.join("models", filename),
-        as_attachment=True,
-    )
-
-
-
-
-    # ---------- NUEVA RUTA PARA PREDICCIÓN GRADUAL -----------------------------
-@app.route("/predict_gradual", methods=["POST"])
-def predict_gradual_route():
-    data_f = request.files.get("predict_file")
-    model_f = request.files.get("model_file")
-
-    if (
-        data_f and allowed_file(data_f.filename, {"xlsx", "xls"}) and
-        model_f and allowed_file(model_f.filename, {"pkl"})
-    ):
-        pred_dir = os.path.join(app.config["UPLOAD_FOLDER"], "prediction")
-        os.makedirs(pred_dir, exist_ok=True)
-        data_name = secure_filename(data_f.filename)
-        data_path = os.path.join(pred_dir, data_name)
-        data_f.save(data_path)
-
-        model_name = secure_filename(model_f.filename)
-        model_path = os.path.join(app.config["MODEL_FOLDER"], model_name)
-        model_f.save(model_path)
-
-        # La función ahora devuelve (df_out, excel_path, error)
-        df_out, excel_path, error = run_gradual_prediction(data_path, model_path)
-        
-        if error:
-            return f"Ocurrió un error: {error}", 500
-
-        table_html = df_out.to_html(classes="table table-striped table-hover", index=False)
-
-        return render_template(
-            "prediction_results.html",
-            table=table_html,
-            # Pasamos el nombre del archivo para que el botón de descarga funcione
-            pred_file=os.path.basename(excel_path)
-        )
-
-    return "Archivos inválidos o faltantes para la predicción gradual.", 400
-# --- Inicialización del Servidor ---
-if __name__ == "__main__":
-    # Asegura la crescm-history-item:c%3A%5CUsers%5Cdanhv%5COneDrive%20-%20UNIVERSIDAD%20PRIVADA%20NORBERT%20WIENER%20S.A%5CNW%5CProyecto%20Predicci%C3%B3n%5CC%C3%B3digo%5Cml-webapp?%7B%22repositoryId%22%3A%22scm0%22%2C%22historyItemId%22%3A%222a99329c01d97d9187909d1d35a0a64a66c16b5b%22%2C%22historyItemParentId%22%3A%229193d307baac58bd8c985d670c15920cc7ee0e27%22%2C%22historyItemDisplayId%22%3A%222a99329%22%7Dación de los directorios necesarios al iniciar
-    for d in ["uploads/training", "uploads/prediction", "models", "static/img"]:
-        os.makedirs(d, exist_ok=True)
-
+if __name__ == '__main__':
     app.run(debug=True)
