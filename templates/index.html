@@ -1,36 +1,79 @@
 {% extends 'base.html' %}
-
-{% block title %}Inicio - Sistema de Predicción{% endblock %}
+{% block title %}Dashboard Principal{% endblock %}
+{% block page_title %}Dashboard Principal{% endblock %}
 
 {% block content %}
-<div class="p-5 mb-4 bg-white rounded-3 shadow-sm">
-    <div class="container-fluid py-5">
-        <h1 class="display-5 fw-bold">Bienvenido al Sistema de Alerta Temprana</h1>
-        <p class="col-md-8 fs-4">Este sistema utiliza un enfoque de "Predicción Gradual Adaptativa" para identificar a los estudiantes en riesgo a medida que avanza el ciclo académico.</p>
-        <hr class="my-4">
-        <p>Utilice las siguientes opciones para entrenar los modelos o realizar nuevas predicciones.</p>
-        <a class_btn="btn btn-primary btn-lg me-2" href="/train_gradual" role="button">
-            <i class="bi bi-robot"></i> Entrenar un Modelo
-        </a>
-        <a class_btn="btn btn-success btn-lg" href="/predict_gradual" role="button">
-            <i class="bi bi-clipboard-data"></i> Realizar una Nueva Predicción
-        </a>
+<!-- Fila de Tarjetas de Estadísticas (KPIs) -->
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-icon icon-primary">
+                <i class="bi bi-robot"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-label">Modelos Entrenados</span>
+                <span class="stat-value">4</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-icon icon-success">
+                <i class="bi bi-people-fill"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-label">Estudiantes Analizados</span>
+                <span class="stat-value">1,200+</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-icon icon-warning">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-label">Alertas Generadas</span>
+                <span class="stat-value">87</span>
+            </div>
+        </div>
     </div>
 </div>
 
-<div class="row align-items-md-stretch">
-    <div class="col-md-6 mb-4">
-        <div class="h-100 p-5 text-white bg-dark rounded-3 shadow">
-            <h2>Paso 1: Entrenar Modelo</h2>
-            <p>Suba el archivo histórico consolidado (ej. <code>Data - consolidada.xlsx</code>) para entrenar y re-entrenar los modelos para cada unidad (U1, U2, U3, U4). Cada entrenamiento genera un archivo <code>.pkl</code> más inteligente.</p>
-            <a class="btn btn-outline-light" href="/train_gradual" role="button">Ir a Entrenamiento</a>
+<!-- Fila de Acciones Principales -->
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body d-flex flex-column p-5 text-center">
+                <div class="mb-3">
+                    <i class="bi bi-robot display-3 text-primary"></i>
+                </div>
+                <h2 class="card-title h4 fw-bold">Paso 1: Entrenar Modelo</h2>
+                <p class="text-muted mb-4">
+                    Suba el archivo histórico consolidado (ej. <code>Data - consolidada.xlsx</code>) 
+                    para entrenar y re-entrenar los modelos para cada unidad (U1, U2, U3, U4).
+                </p>
+                <a class="btn btn-primary mt-auto" href="/train_gradual" role="button">
+                    <i class="bi bi-arrow-right"></i> Ir a Entrenamiento
+                </a>
+            </div>
         </div>
     </div>
-    <div class="col-md-6 mb-4">
-        <div class="h-100 p-5 bg-white border rounded-3 shadow-sm">
-            <h2>Paso 2: Predecir Estado</h2>
-            <p>Suba un archivo de estudiantes (ej. <code>Para predecir U2.xlsx</code>). El sistema detectará automáticamente qué unidad debe predecir (U1, U2, U3 o U4) basándose en las notas ya registradas.</p>
-            <a class="btn btn-outline-success" href="/predict_gradual" role="button">Ir a Predicción</a>
+    <div class="col-md-6">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body d-flex flex-column p-5 text-center">
+                <div class="mb-3">
+                    <i class="bi bi-clipboard-data-fill display-3 text-success"></i>
+                </div>
+                <h2 class="card-title h4 fw-bold">Paso 2: Realizar Predicción</h2>
+                <p class="text-muted mb-4">
+                    Suba un archivo de estudiantes (ej. <code>Para predecir U2.xlsx</code>). 
+                    El sistema detectará automáticamente qué unidad debe predecir.
+                </p>
+                <a class="btn btn-success mt-auto" href="/predict_gradual" role="button">
+                    <i class="bi bi-arrow-right"></i> Ir a Predicción
+                </a>
+            </div>
         </div>
     </div>
 </div>

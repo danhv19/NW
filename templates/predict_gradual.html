@@ -1,39 +1,57 @@
 {% extends 'base.html' %}
-
 {% block title %}Realizar Predicción Gradual{% endblock %}
+{% block page_title %}Predicción Gradual Inteligente{% endblock %}
 
 {% block content %}
-<div class="card shadow-sm">
-    <div class="card-header bg-success text-white">
-        <h4 class="mb-0">Predicción Gradual Inteligente</h4>
-    </div>
-    <div class="card-body">
-        <p class="card-text">
-            Suba aquí el archivo de los estudiantes para quienes desea una predicción.
-            (ej. <code>Para predecir U1.xlsx</code>, <code>Para predecir U2.xlsx</code>).
-        </p>
-        <p class="fw-bold">
-            El sistema detectará automáticamente qué unidad debe predecir basándose en las notas
-            que ya están registradas en el archivo.
-        </p>
-        
-        <ul class="list-group list-group-flush mb-3">
-            <li class="list-group-item">Si faltan notas de <strong>U1</strong> -> El sistema predecirá <strong>U1</strong>.</li>
-            <li class="list-group-item">Si existen notas de <strong>U1</strong> pero faltan de <strong>U2</strong> -> El sistema predecirá <strong>U2</strong>.</li>
-            <li class="list-group-item">Si existen notas de <strong>U1, U2</strong> pero faltan de <strong>U3</strong> -> El sistema predecirá <strong>U3</strong>.</li>
-            <li class="list-group-item">...y así sucesivamente.</li>
-        </ul>
-        
-        <form action="/predict_gradual" method="POST" enctype="multipart/form-data">
-            <div class="mb-3">
-                <label for="file" class="form-label">Seleccione el archivo para predecir:</label>
-                <input class="form-control" type="file" id="file" name="file" required>
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header card-header-success">
+                <h5 class="mb-0 text-white"><i class="bi bi-upload me-2"></i>Subir Datos para Predicción</h5>
             </div>
-            
-            <button type="submit" class="btn btn-success w-100">
-                <i class="bi bi-clipboard-data"></i> Realizar Predicción
-            </button>
-        </form>
+            <div class="card-body p-4">
+                <p class="card-text text-muted">
+                    Suba aquí el archivo de los estudiantes para quienes desea una predicción.
+                    (ej. <code>Para predecir U1.xlsx</code>, <code>Para predecir U2.xlsx</code>).
+                </p>
+                <p class="fw-bold text-dark">
+                    El sistema detectará automáticamente qué unidad debe predecir basándose en las notas
+                    que ya están registradas en el archivo.
+                </p>
+                
+                <form action="/predict_gradual" method="POST" enctype="multipart/form-data" class="mt-4">
+                    <div class="mb-4">
+                        <label for="file" class="form-label">Seleccione el archivo para predecir:</label>
+                        <input class="form-control form-control-lg" type="file" id="file" name="file" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success btn-lg w-100">
+                        <i class="bi bi-clipboard-data-fill"></i> Realizar Predicción
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>¿Cómo funciona?</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush small">
+                    <li class="list-group-item">Si sube un archivo <strong>sin notas U1</strong>...</li>
+                    <li class="list-group-item list-group-item-secondary">...el sistema usará <code>modelo_gradual_ud1.pkl</code> para predecir <strong>U1</strong>.</li>
+                    
+                    <li class="list-group-item">Si sube un archivo <strong>con notas U1</strong> pero <strong>sin U2</strong>...</li>
+                    <li class="list-group-item list-group-item-secondary">...el sistema usará <code>modelo_gradual_ud2.pkl</code> para predecir <strong>U2</strong>.</li>
+                    
+                    <li class="list-group-item">Si sube un archivo <strong>con U1, U2</strong> pero <strong>sin U3</strong>...</li>
+                    <li class="list-group-item list-group-item-secondary">...el sistema usará <code>modelo_gradual_ud3.pkl</code> para predecir <strong>U3</strong>.</li>
+
+                    <li class="list-group-item">...y así sucesivamente.</li>
+                </ul>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

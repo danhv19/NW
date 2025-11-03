@@ -1,15 +1,18 @@
 {% extends 'base.html' %}
-
 {% block title %}Resultados de Entrenamiento{% endblock %}
+{% block page_title %}Resultados del Entrenamiento para {{ target_unit }}{% endblock %}
 
 {% block content %}
 <div class="card shadow-sm mb-4">
-    <div class="card-header bg-primary text-white">
-        <h4 class="mb-0">Resultados del Entrenamiento para {{ target_unit }}</h4>
+    <div class="card-header card-header-primary">
+        <h5 class="mb-0 text-white"><i class="bi bi-bar-chart-line-fill me-2"></i>Resultados del Entrenamiento para {{ target_unit }}</h5>
     </div>
-    <div class="card-body">
+    <div class="card-body p-4">
         <h5 class="card-title">Métricas de Rendimiento (3 Modelos)</h5>
-        <p>Se entrenaron 3 modelos y se seleccionó el mejor (mayor "accuracy") para ser guardado como <code>{{ model_filename }}</code>.</p>
+        <p class="text-muted">
+            Se entrenaron 3 modelos y se seleccionó el mejor (mayor "accuracy") para ser guardado como 
+            <code class="fw-bold text-dark">{{ model_filename }}</code>.
+        </p>
         <div class="table-responsive">
             <table class="table table-bordered table-striped table-hover">
                 <thead class="table-dark">
@@ -37,22 +40,19 @@
     </div>
 </div>
 
+<!-- 
+    Sección de Gráficos Oculta Temporalmente. 
+    Para reactivarla, descomente esto y solucione el error en 'plotting_gradual.py'
+-->
 <div class="card shadow-sm">
     <div class="card-header">
-        <h4 class="mb-0">Análisis Exploratorio de Datos (EDA)</h4>
+        <h5 class="mb-0"><i class="bi bi-pie-chart-fill me-2"></i>Análisis Exploratorio de Datos (EDA)</h5>
     </div>
     <div class="card-body">
-        <p>Estos gráficos se generaron a partir del archivo de entrenamiento para entender el comportamiento de las variables.</p>
-        <div class="row">
-            {% for plot_name, plot_file in plots.items() %}
-            <div class="col-md-6 mb-4">
-                <div class="card">
-                    <div class="card-header">{{ plot_name|title }}</div>
-                    <img src="{{ url_for('static', filename='img/' + plot_file) }}" class="card-img-top" alt="Gráfico de {{ plot_name }}">
-                </div>
-            </div>
-            {% endfor %}
-        </div>
+        <p class="text-center text-muted">
+            La generación de gráficos está desactivada temporalmente para solucionar un error de importación.
+            (Referencia: <code>plotting_gradual.py</code>)
+        </p>
     </div>
 </div>
 {% endblock %}
