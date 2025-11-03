@@ -70,7 +70,7 @@ def load_and_clean_data(filepath, is_training_data=True):
         df["EDAD_X_ASISTENCIA"] = df["EDAD"] * df["PORCENTAJE_asistencia"]
 
     if "CURSOS_MATRICULADOS" in df.columns and "INDICE_PAGO" in df.columns:
-         df["CURSOS_X_INDICE_PAGO"] = df["CURSOS_MATRICULADOS"] * df["INDICE_PAGO"]
+        df["CURSOS_X_INDICE_PAGO"] = df["CURSOS_MATRICULADOS"] * df["INDICE_PAGO"]
 
     # 4. NUEVO: Agrupar EDAD en categorías
     if "EDAD" in df.columns:
@@ -94,6 +94,6 @@ def load_and_clean_data(filepath, is_training_data=True):
     # --- Variable Objetivo ---
     # Crear variable objetivo solo si es data de entrenamiento
     if is_training_data:
-        df['ESTADO_APROBACION_NUM'] = np.where(df['PROMEDIO_CURSO'] >= 13, 1, 0)
+        df['ESTADO_APROBACION_NUM'] = np.where(df['PROMEDIO_CURSO'] >= 11, 1, 0)
 
     return df

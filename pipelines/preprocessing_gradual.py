@@ -5,20 +5,100 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 
+
+def standardize_gradual_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Homologa los encabezados usados durante el entrenamiento y la predicción."""
+
+    special_case_map = {
+        'Periodo': 'Periodo',
+        'PERIODO': 'Periodo_Academico'
+    }
+
+    generic_map = {
+        'CARRERA': 'Carrera',
+        'CURSO': 'Curso',
+        'CÓDIGO': 'Codigo',
+        'CODIGO': 'Codigo',
+        'EDAD': 'Edad',
+        'DOCENTE': 'Docente',
+        'MODALIDAD': 'Modalidad',
+        'TIPOSESION': 'Tiposesion',
+        'SECCIÓN': 'Seccion',
+        'SECCION': 'Seccion',
+        'ASISTENCIAS': 'Asistencias',
+        'PORCENTAJE_ASISTENCIA': 'Asistencia',
+        'ASISTENCIA': 'Asistencia',
+        'CUOTA_1': 'CUOTA_1',
+        'CUOTA_2': 'CUOTA_2',
+        'CUOTA_3': 'CUOTA_3',
+        'CUOTA_4': 'CUOTA_4',
+        'CUOTA_5': 'CUOTA_5',
+        'U1': 'ud1',
+        'U2': 'ud2',
+        'U3': 'ud3',
+        'U4': 'ud4',
+        'ESTADO_NOTA': 'Estado_nota',
+        'ESTADO': 'Estado_nota',
+        'PROMEDIO_CURSO': 'promedio_curso',
+        'FECHA_MATRICULA': 'fecha_matricula',
+        'FECHA_INICIO': 'fecha_inicio',
+        'FECHA_FIN': 'fecha_fin',
+        'PROMEDIO': 'promedio'
+    }
+
+    new_columns = []
+    seen = {}
+    for col in df.columns:
+        original = col.strip()
+        if original in special_case_map:
+            new_col = special_case_map[original]
+        else:
+            key = original.upper()
+            new_col = generic_map.get(key, original)
+
+        if new_col in seen:
+            seen[new_col] += 1
+            new_col = f"{new_col}_{seen[new_col]}"
+        else:
+            seen[new_col] = 0
+
+        new_columns.append(new_col)
+
+    df.columns = new_columns
+    return df
+
 def clean_data(df):
     """
     Realiza la limpieza básica de datos.
     """
-    if 'Asistencia' in df.columns and df['Asistencia'].dtype == 'object':
-        df['Asistencia'] = df['Asistencia'].str.replace('%', '', regex=False).astype(float) / 100.0
+    if 'Asistencia' in df.columns:
+        if df['Asistencia'].dtype == 'object':
+            df['Asistencia'] = df['Asistencia'].str.replace('%', '', regex=False)
+        df['Asistencia'] = pd.to_numeric(df['Asistencia'], errors='coerce')
+        if df['Asistencia'].max(skipna=True) is not None and df['Asistencia'].max(skipna=True) > 1:
+            df['Asistencia'] = df['Asistencia'] / 100.0
+
+    if 'Asistencias' in df.columns:
+        df['Asistencias'] = pd.to_numeric(df['Asistencias'], errors='coerce').fillna(0)
 
     for col in ['fecha_matricula', 'fecha_inicio', 'fecha_fin']:
         if col in df.columns:
             df[col] = pd.to_datetime(df[col], dayfirst=True, errors='coerce')
-            
+
     for col in ['CUOTA_1', 'CUOTA_2', 'CUOTA_3', 'CUOTA_4', 'CUOTA_5']:
         if col in df.columns:
-            df[col] = df[col].map({'COBRADO': 1, 'PENDIENTE': 0}).fillna(0)
+            df[col] = (
+                df[col]
+                .astype(str)
+                .str.strip()
+                .str.upper()
+                .map({'COBRADO': 1, 'PENDIENTE': 0})
+                .fillna(0)
+            )
+
+    for col in ['ud1', 'ud2', 'ud3', 'ud4']:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
 
     if 'Estado_nota' in df.columns:
         df['target'] = df['Estado_nota'].map({'Aprobado': 1, 'Desaprobado': 0})
@@ -51,7 +131,20 @@ def get_features_for_stage(stage):
     """
     Define las características correctas para cada ETAPA DE PREDICCIÓN.
     """
-    base_features = ['Carrera', 'Docente', 'Asistencia', 'Ciclo', 'dias_anticipacion_matricula']
+    base_features = [
+        'Periodo',
+        'Periodo_Academico',
+        'Carrera',
+        'Curso',
+        'Docente',
+        'Modalidad',
+        'Tiposesion',
+        'Seccion',
+        'Edad',
+        'Asistencia',
+        'Asistencias',
+        'dias_anticipacion_matricula'
+    ]
     
     # Modelo 1: Se entrena SIN NOTAS. Se usa para predecir ANTES de la UD1.
     if stage == 1:
@@ -71,19 +164,45 @@ def get_features_for_stage(stage):
         
     return []
 
+
+_CATEGORICAL_EXPECTED = {
+    'Periodo',
+    'Periodo_Academico',
+    'Carrera',
+    'Curso',
+    'Docente',
+    'Modalidad',
+    'Tiposesion',
+    'Seccion',
+}
+
+
+def ensure_expected_features(df: pd.DataFrame, stage: int) -> pd.DataFrame:
+    """Guarantee that every expected feature for the stage exists with a safe default."""
+
+    expected = get_features_for_stage(stage)
+
+    for col in expected:
+        if col not in df.columns:
+            if col in _CATEGORICAL_EXPECTED:
+                df[col] = 'Desconocido'
+            else:
+                df[col] = 0
+
+    return df[expected]
+
 def preprocess_for_gradual_training(df, stage):
     """
     Orquesta el preprocesamiento para el entrenamiento y devuelve los datos y el preprocesador.
     """
-    df_clean = clean_data(df.copy())
+    df_standardized = standardize_gradual_columns(df.copy())
+    df_clean = clean_data(df_standardized)
     df_featured = feature_engineering_by_stage(df_clean, stage)
-    
-    features_to_use = get_features_for_stage(stage)
-    
+
     if 'target' not in df_featured.columns:
         raise ValueError("La columna 'Estado_nota' (mapeada a 'target') no se encontró.")
-        
-    X = df_featured[[col for col in features_to_use if col in df_featured.columns]]
+
+    X = ensure_expected_features(df_featured, stage)
     y = df_featured['target']
 
     numeric_features = X.select_dtypes(include='number').columns.tolist()
