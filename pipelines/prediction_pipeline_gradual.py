@@ -4,7 +4,12 @@ import os
 from werkzeug.utils import secure_filename
 
 # Importamos las funciones actualizadas que nos ayudarán
-from pipelines.preprocessing_gradual import clean_data, feature_engineering_by_stage, get_features_for_stage
+from pipelines.preprocessing_gradual import (
+    clean_data,
+    ensure_expected_features,
+    feature_engineering_by_stage,
+    standardize_gradual_columns,
+)
 
 def run_gradual_prediction(data_path, model_path):
     """
@@ -14,8 +19,9 @@ def run_gradual_prediction(data_path, model_path):
     try:
         # 1. Cargar modelo y datos
         model_pipeline = joblib.load(model_path)
-        df_new = pd.read_excel(data_path)
-        df_original = df_new.copy()
+        df_raw = pd.read_excel(data_path)
+        df_original = df_raw.copy()
+        df_new = standardize_gradual_columns(df_raw)
 
         # 2. DETECCIÓN DE ETAPA (del nombre del modelo)
         if "ud1" in model_path.lower(): stage = 1
@@ -26,34 +32,14 @@ def run_gradual_prediction(data_path, model_path):
             raise ValueError("No se pudo determinar la etapa desde el nombre del archivo del modelo.")
         print(f"--- Modelo de Etapa {stage} detectado. Preparando datos... ---")
 
-        # 3. LIMPIEZA Y ESTANDARIZACIÓN DE NOMBRES
-        # Normaliza nombres: ' DOCENTE ' -> 'Docente', 'porcentaje_ASISTENCIA' -> 'Porcentaje_Asistencia'
-        df_new.columns = df_new.columns.str.strip().str.title() 
-        
-        column_mapper = {
-            'Porcentaje_Asistencia': 'Asistencia',
-            'U1': 'ud1', 'U2': 'ud2', 'U3': 'ud3', 'U4': 'ud4'
-        }
-        df_new.rename(columns=column_mapper, inplace=True)
-
-        # 4. LIMPIEZA DE DATOS (Convertir 'COBRADO' a 1, etc.)
-        df_cleaned = clean_data(df_new)
+        # 3. LIMPIEZA DE DATOS (Convertir 'COBRADO' a 1, etc.)
+        df_cleaned = clean_data(df_new.copy())
 
         # 5. CREACIÓN DE CARACTERÍSTICAS
-        df_prepared = feature_engineering_by_stage(df_cleaned, stage)
+        df_prepared = feature_engineering_by_stage(df_cleaned.copy(), stage)
         
         # 6. ALINEACIÓN FINAL Y ROBUSTA
-        # Obtener la lista de características que el modelo de esta etapa realmente necesita
-        expected_features = get_features_for_stage(stage)
-        
-        for col in expected_features:
-            if col not in df_prepared.columns:
-                # Si una columna esperada no existe (ej. 'Ciclo', 'dias_anticipacion_matricula'), 
-                # la creamos con un valor por defecto. Usar 0 es una estrategia segura.
-                df_prepared[col] = 0 
-
-        # Asegurarse de que el dataframe final solo tenga las columnas esperadas en el orden correcto
-        df_aligned = df_prepared[expected_features]
+        df_aligned = ensure_expected_features(df_prepared, stage)
 
         # 7. PREDICCIÓN
         predictions = model_pipeline.predict(df_aligned)

@@ -7,7 +7,7 @@ from sklearn.pipeline import Pipeline
 import joblib
 import os
 
-from pipelines.preprocessing_gradual import preprocess_for_gradual_training
+from pipelines.preprocessing_gradual import preprocess_for_gradual_training, standardize_gradual_columns
 from pipelines.plotting_gradual import generate_behavioral_plots
 
 def train_and_save_gradual_models(data_path, models_dir='models', static_dir='static/img'):
@@ -16,6 +16,7 @@ def train_and_save_gradual_models(data_path, models_dir='models', static_dir='st
     """
     try:
         df = pd.read_excel(data_path)
+        df = standardize_gradual_columns(df)
     except Exception as e:
         return {"error": f"No se pudo leer el archivo Excel: {e}"}
 
