@@ -1,19 +1,18 @@
 {% extends 'base.html' %}
-{% block title %}Entrenar Modelo Gradual{% endblock %}
-{% block page_title %}Entrenamiento de Modelo Gradual{% endblock %}
+{% block title %}Entrenar Modelos SAT{% endblock %}
+{% block page_title %}Proceso 2: Entrenamiento del Sistema de Alerta Temprana (SAT){% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-lg-8">
         <div class="card shadow-sm">
             <div class="card-header card-header-primary">
-                <h5 class="mb-0 text-white"><i class="bi bi-upload me-2"></i>Subir Datos de Entrenamiento</h5>
+                <h5 class="mb-0 text-white"><i class="bi bi-upload me-2"></i>Entrenar Modelos de Unidad</h5>
             </div>
             <div class="card-body p-4">
                 <p class="card-text text-muted">
-                    Suba aquí el archivo histórico de datos (ej. <code>Data - consolidada.xlsx</code>).
-                    Este archivo debe contener todas las características de matrícula y, lo más importante,
-                    las notas finales de las unidades (U1, U2, U3, U4) o el <code>PROMEDIO_CURSO</code>.
+                    Suba aquí el archivo histórico que contenga las notas de las unidades (ej. <code>Data - consolidada.xlsx</code>
+                    o <code>Para predecir U4.xlsx</code> con todas las notas llenas).
                 </p>
                 
                 <form action="/train_gradual" method="POST" enctype="multipart/form-data" class="mt-4">
@@ -23,7 +22,7 @@
                     </div>
                     
                     <div class="mb-4">
-                        <label for="target_unit" class="form-label">2. Seleccione el modelo que desea entrenar:</label>
+                        <label for="target_unit" class="form-label">2. Seleccione el modelo que desea (re)entrenar:</label>
                         <select class="form-select form-select-lg" id="target_unit" name="target_unit" required>
                             <option value="" disabled selected>-- Elija una unidad --</option>
                             <option value="U1">Modelo para Predecir U1 (Base)</option>
@@ -32,12 +31,12 @@
                             <option value="U4">Modelo para Predecir U4 (Usa U1, U2, U3)</option>
                         </select>
                         <div class="form-text mt-2">
-                            Ej: Si selecciona "Modelo para Predecir U2", el sistema usará los datos de matrícula + la nota U1 para entrenar el modelo U2.
+                            Ej: Si selecciona "Modelo U2", el sistema usará las notas U1 del archivo para entrenar <code>modelo_gradual_ud2.pkl</code>.
                         </div>
                     </div>
                     
                     <button type="submit" class="btn btn-primary btn-lg w-100">
-                        <i class="bi bi-robot"></i> Entrenar Modelo
+                        <i class="bi bi-robot"></i> Entrenar Modelo de Unidad
                     </button>
                 </form>
             </div>
@@ -49,14 +48,16 @@
                 <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Instrucciones</h5>
             </div>
             <div class="card-body">
-                <p class="fw-bold text-dark">Paso 1: Entrenar Modelo U1</p>
-                <p class="text-muted small">Seleccione su archivo <code>Data - consolidada.xlsx</code> y elija <code>Modelo para Predecir U1</code>. Esto creará <code>modelo_gradual_ud1.pkl</code>.</p>
-                
-                <p class="fw-bold text-dark">Paso 2: Entrenar Modelo U2</p>
-                <p class="text-muted small">Vuelva a seleccionar el mismo archivo <code>Data - consolidada.xlsx</code> y elija <code>Modelo para Predecir U2</code>. Esto creará <code>modelo_gradual_ud2.pkl</code>.</p>
-                
-                <p class="fw-bold text-dark">Paso 3: Repetir</p>
-                <p class="text-muted small">Repita el proceso para U3 y U4. Debe entrenar los 4 modelos antes de poder realizar predicciones completas.</p>
+                <p class="text-muted small">Este es el paso más importante para que el SAT funcione.</p>
+                <p class="fw-bold text-dark">Acción Requerida:</p>
+                <p class="text-muted small">Debe usar un archivo histórico (como <code>Data - consolidada.xlsx</code>) que ya tenga todas las notas (U1, U2, U3, U4) y entrenar cada uno de los 4 modelos <strong>uno por uno</strong>.</p>
+                <ol class="text-muted small">
+                    <li>Suba el archivo y elija "Modelo para Predecir U1".</li>
+                    <li>Suba el archivo otra vez y elija "Modelo para Predecir U2".</li>
+                    <li>Repita para U3.</li>
+                    <li>Repita para U4.</li>
+                </ol>
+                 <p class="text-muted small fw-bold">Solo después de entrenar los 4 modelos podrá usar la "Predicción Gradual".</p>
             </div>
         </div>
     </div>

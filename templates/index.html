@@ -3,58 +3,32 @@
 {% block page_title %}Dashboard Principal{% endblock %}
 
 {% block content %}
-<!-- Fila de Tarjetas de Estadísticas (KPIs) -->
 <div class="row g-4 mb-4">
-    <div class="col-md-4">
-        <div class="stat-card">
-            <div class="stat-icon icon-primary">
-                <i class="bi bi-robot"></i>
-            </div>
-            <div class="stat-info">
-                <span class="stat-label">Modelos Entrenados</span>
-                <span class="stat-value">4</span>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="stat-card">
-            <div class="stat-icon icon-success">
-                <i class="bi bi-people-fill"></i>
-            </div>
-            <div class="stat-info">
-                <span class="stat-label">Estudiantes Analizados</span>
-                <span class="stat-value">1,200+</span>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="stat-card">
-            <div class="stat-icon icon-warning">
-                <i class="bi bi-exclamation-triangle-fill"></i>
-            </div>
-            <div class="stat-info">
-                <span class="stat-label">Alertas Generadas</span>
-                <span class="stat-value">87</span>
-            </div>
+    <div class="col-12">
+        <div class="card p-5 shadow-sm border-0">
+            <h1 class="display-6 fw-bold">Sistema de Predicción Académica</h1>
+            <p class="col-md-10 fs-5 text-muted">
+                Bienvenido al panel de control. El sistema se divide en dos procesos principales.
+            </p>
         </div>
     </div>
 </div>
 
-<!-- Fila de Acciones Principales -->
 <div class="row g-4">
     <div class="col-md-6">
         <div class="card h-100 shadow-sm">
             <div class="card-body d-flex flex-column p-5 text-center">
                 <div class="mb-3">
-                    <i class="bi bi-robot display-3 text-primary"></i>
+                    <i class="bi bi-search display-3 text-info"></i>
                 </div>
-                <h2 class="card-title h4 fw-bold">Paso 1: Entrenar Modelo</h2>
+                <h2 class="card-title h4 fw-bold">Proceso 1: Análisis Histórico</h2>
                 <p class="text-muted mb-4">
-                    Suba el archivo histórico consolidado (ej. <code>Data - consolidada.xlsx</code>) 
-                    para entrenar y re-entrenar los modelos para cada unidad (U1, U2, U3, U4).
+                    Use el archivo <strong>"Data - consolidada.xlsx"</strong> para un análisis profundo.
+                    El sistema entrenará 3 modelos para descubrir qué variables
+                    impactan el <strong>promedio final</strong> del curso.
                 </p>
-                <a class="btn btn-primary mt-auto" href="/train_gradual" role="button">
-                    <i class="bi bi-arrow-right"></i> Ir a Entrenamiento
+                <a class="btn btn-info text-white mt-auto" href="/analysis" role="button">
+                    <i class="bi bi-arrow-right"></i> Iniciar Análisis
                 </a>
             </div>
         </div>
@@ -65,13 +39,13 @@
                 <div class="mb-3">
                     <i class="bi bi-clipboard-data-fill display-3 text-success"></i>
                 </div>
-                <h2 class="card-title h4 fw-bold">Paso 2: Realizar Predicción</h2>
+                <h2 class="card-title h4 fw-bold">Proceso 2: Alerta Temprana (SAT)</h2>
                 <p class="text-muted mb-4">
-                    Suba un archivo de estudiantes (ej. <code>Para predecir U2.xlsx</code>). 
-                    El sistema detectará automáticamente qué unidad debe predecir.
+                    Use el sistema gradual para (re)entrenar los modelos de cada unidad (U1, U2, etc.)
+                    y luego predecir el rendimiento de los nuevos estudiantes paso a paso.
                 </p>
-                <a class="btn btn-success mt-auto" href="/predict_gradual" role="button">
-                    <i class="bi bi-arrow-right"></i> Ir a Predicción
+                <a class="btn btn-success mt-auto" href="/train_gradual" role="button">
+                    <i class="bi bi-arrow-right"></i> Ir al Sistema Gradual
                 </a>
             </div>
         </div>

@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}Análisis Histórico{% endblock %}
+{% block page_title %}Proceso 1: Análisis Histórico{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header card-header-primary" style="background-color: #5bc0de; border-color: #5bc0de;">
+                <h5 class="mb-0 text-white"><i class="bi bi-upload me-2"></i>Subir Datos Históricos</h5>
+            </div>
+            <div class="card-body p-4">
+                <p class="card-text text-muted">
+                    Suba aquí el archivo histórico de datos (ej. <code>Data - consolidada.xlsx</code>).
+                    El sistema analizará todas las variables (asistencia, pagos, demografía)
+                    contra el <code>PROMEDIO_CURSO</code> final para encontrar patrones.
+                </p>
+                
+                <form action="/analysis" method="POST" enctype="multipart/form-data" class="mt-4">
+                    <div class="mb-4">
+                        <label for="file" class="form-label">1. Seleccione el archivo consolidado:</label>
+                        <input class="form-control form-control-lg" type="file" id="file" name="file" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-info text-white btn-lg w-100">
+                        <i class="bi bi-search"></i> Iniciar Análisis y Entrenar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>¿Qué hace esto?</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">Este proceso está diseñado para responder a la pregunta:</p>
+                <p class="fw-bold text-dark">"¿Qué variables impactan más en que un alumno apruebe o desapruebe el curso al final?"</p>
+                <hr>
+                <p class="fw-bold text-dark">Resultados:</p>
+                <ul class="text-muted small">
+                    <li>Genera gráficos de correlación y EDA.</li>
+                    <li>Entrena 3 modelos (LogReg, RF, GB).</li>
+                    <li>Guarda el mejor modelo como <code>modelo_historico.pkl</code>.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

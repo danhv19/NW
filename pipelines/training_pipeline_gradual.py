@@ -6,25 +6,28 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.metrics import accuracy_score, classification_report
 from .preprocessing_gradual import preprocess_gradual
-# from .plotting_gradual import plot_gradual_results # <--- CORRECCIÓN: Comentado para evitar ImportError
 
 # --- Definición de Características Unificadas ---
+# Estas son las características de MATRÍCULA
 BASE_FEATURES = [
     'EDAD', 'MODALIDAD', 'Carrera', 'CURSO', 
     'TIPOSESION', 'SECCIÓN', 'DOCENTE', 'PERIODO',
-    'PORCENTAJE_asistencia', 'CUOTA_1', 'CUOTA_2', 'CUOTA_3', 'CUOTA_4', 'CUOTA_5',
-    'DEPART', 'DISTRITO', 'PROCEDENCIA', 'PERIODO_INGRESO', 'CURSOS_MATRICULADOS'
+    'PORCENTAJE_asistencia', 
+    'CUOTA_1', 'CUOTA_2', 'CUOTA_3', 'CUOTA_4', 'CUOTA_5'
 ]
 
+# Mapeo de nombres de columnas
 COLUMN_MAP = {
     'DESCRIPCION': 'Carrera',
     'DESCRIPCION_1': 'CURSO' 
 }
 
-def run_gradual_training(filepath, target_unit, models_folder, plots_folder):
+def run_gradual_training(filepath, target_unit, models_folder):
     """
-    Entrena modelos para una unidad específica (U1, U2, U3, o U4).
-    Usa el archivo 'Data - consolidada.xlsx' o similar.
+    Ejecuta el Proceso 2 (Entrenamiento):
+    Entrena un modelo para una unidad específica (U1, U2, U3, o U4).
+    Usa el "Data - consolidada.xlsx" (que debe tener U1-U4) para crear
+    los modelos pkl graduales.
     """
     print(f"--- Iniciando Entrenamiento Gradual para: {target_unit} ---")
 
@@ -36,22 +39,23 @@ def run_gradual_training(filepath, target_unit, models_folder, plots_folder):
     df.rename(columns=COLUMN_MAP, inplace=True)
 
     # --- Definición de Características y Objetivo ---
+    # El mapa define qué características usar para entrenar CADA modelo
     training_map = {
         'U1': {
             'target_col': 'U1',
-            'features': BASE_FEATURES
+            'features': BASE_FEATURES # Modelo U1 solo usa datos de matrícula
         },
         'U2': {
             'target_col': 'U2',
-            'features': BASE_FEATURES + ['U1']
+            'features': BASE_FEATURES + ['U1'] # Modelo U2 usa matrícula + U1
         },
         'U3': {
             'target_col': 'U3',
-            'features': BASE_FEATURES + ['U1', 'U2']
+            'features': BASE_FEATURES + ['U1', 'U2'] # Modelo U3 usa matrícula + U1 + U2
         },
         'U4': {
             'target_col': 'U4',
-            'features': BASE_FEATURES + ['U1', 'U2', 'U3']
+            'features': BASE_FEATURES + ['U1', 'U2', 'U3'] # Modelo U4 usa matrícula + U1 + U2 + U3
         }
     }
 
@@ -60,34 +64,42 @@ def run_gradual_training(filepath, target_unit, models_folder, plots_folder):
 
     config = training_map[target_unit]
     TARGET_COLUMN_NAME = config['target_col']
-    FEATURES = [f for f in config['features'] if f in df.columns]
+    
+    # Asegurarse de que el archivo de entrenamiento tenga todas las columnas necesarias
+    if TARGET_COLUMN_NAME not in df.columns:
+        raise ValueError(f"El archivo de entrenamiento no tiene la columna objetivo '{TARGET_COLUMN_NAME}'.")
+    
+    for f in config['features']:
+        if f not in df.columns and f in BASE_FEATURES:
+            raise ValueError(f"El archivo de entrenamiento no tiene la característica base '{f}'.")
+        if f in ['U1', 'U2', 'U3'] and f not in df.columns:
+             raise ValueError(f"Para entrenar {target_unit}, el archivo debe tener la columna '{f}'.")
 
+
+    FEATURES = config['features']
     print(f"Objetivo: {TARGET_COLUMN_NAME}")
     print(f"Características usadas: {FEATURES}")
 
-    # --- Preprocesamiento del Objetivo ---
-    if TARGET_COLUMN_NAME not in df.columns and 'PROMEDIO_CURSO' in df.columns:
-        print(f"Advertencia: No se encontró la columna '{TARGET_COLUMN_NAME}'. Usando 'PROMEDIO_CURSO' como objetivo.")
-        TARGET_COLUMN = 'PROMEDIO_CURSO'
-    elif TARGET_COLUMN_NAME in df.columns:
-        TARGET_COLUMN = TARGET_COLUMN_NAME
-    else:
-        raise ValueError(f"No se encontró ni '{TARGET_COLUMN_NAME}' ni 'PROMEDIO_CURSO' en el archivo.")
-
-    df[TARGET_COLUMN] = pd.to_numeric(df[TARGET_COLUMN], errors='coerce')
-    df.dropna(subset=[TARGET_COLUMN], inplace=True) 
-    df[f'TARGET_Aprobado'] = (df[TARGET_COLUMN] > 10.5).astype(int)
+    # --- Preprocesamiento del Objetivo y Características ---
+    df[TARGET_COLUMN_NAME] = pd.to_numeric(df[TARGET_COLUMN_NAME], errors='coerce')
+    df.dropna(subset=[TARGET_COLUMN_NAME], inplace=True) 
+    
+    # Convertir a 0 (Desaprobado) y 1 (Aprobado)
+    df[f'TARGET_Aprobado'] = (df[TARGET_COLUMN_NAME] > 10.5).astype(int)
     TARGET = 'TARGET_Aprobado'
     
+    # Limpiar columnas de notas usadas como características
     for col in ['U1', 'U2', 'U3']:
         if col in FEATURES:
-            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0) 
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0) # Rellenar notas faltantes con 0
 
     X = df[FEATURES]
     y = df[TARGET]
 
-    X_processed, preprocessor = preprocess_gradual(X)
+    # Usar el preprocesador gradual
+    X_processed, preprocessor = preprocess_gradual(X, target_unit)
     
+    # Guardar el preprocesador específico para esta unidad
     preprocessor_filename = f"preprocessor_gradual_{target_unit}.pkl"
     joblib.dump(preprocessor, os.path.join(models_folder, preprocessor_filename))
     print(f"Preprocesador guardado en: {preprocessor_filename}")
@@ -98,8 +110,8 @@ def run_gradual_training(filepath, target_unit, models_folder, plots_folder):
     # --- Entrenamiento de 3 Modelos ---
     models = {
         'LogisticRegression': LogisticRegression(random_state=42, max_iter=1000, class_weight='balanced'),
-        'RandomForest': RandomForestClassifier(random_state=42, class_weight='balanced', n_estimators=150, max_depth=10),
-        'GradientBoosting': GradientBoostingClassifier(random_state=42, n_estimators=150, max_depth=5, learning_rate=0.05)
+        'RandomForest': RandomForestClassifier(random_state=42, class_weight='balanced', n_estimators=100),
+        'GradientBoosting': GradientBoostingClassifier(random_state=42, n_estimators=100)
     }
 
     metrics = {}
@@ -124,16 +136,11 @@ def run_gradual_training(filepath, target_unit, models_folder, plots_folder):
         if accuracy > best_accuracy:
             best_accuracy = accuracy
             best_model = model
+            metrics['best_model'] = name # Guardar nombre del mejor modelo
 
     # Guardar el mejor modelo
     model_filename = f"modelo_gradual_{target_unit}.pkl"
     joblib.dump(best_model, os.path.join(models_folder, model_filename))
     print(f"Mejor modelo ({type(best_model).__name__}) guardado como: {model_filename}")
-
-    # --- Generación de Gráficos (EDA) ---
-    print("Generación de gráficos desactivada temporalmente para solucionar error.")
-    # plots = plot_gradual_results(df, TARGET_COLUMN, target_unit, plots_folder) # <--- CORRECCIÓN: Comentado
     
-    # --- ACTUALIZACIÓN ---
-    # Devolvemos solo 'metrics' y 'model_filename'
     return metrics, model_filename

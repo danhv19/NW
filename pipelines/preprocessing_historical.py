@@ -4,47 +4,35 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 
-def preprocess_gradual(X, target_unit):
+def preprocess_historical(X):
     """
-    Preprocesa los datos para el pipeline gradual (U1, U2, U3, U4).
-    Las características base son las mismas, pero se añaden 'U1', 'U2', 'U3'
-    como características numéricas a medida que avanza.
+    Preprocesa los datos para el análisis histórico.
     """
     
-    # Convertir todas las columnas de cuotas a numérico
+    # Convertir todas las columnas de cuotas a numérico, forzando errores a NaN
     for col in ['CUOTA_1', 'CUOTA_2', 'CUOTA_3', 'CUOTA_4', 'CUOTA_5']:
         if col in X.columns:
+            # Asignar 1 a 'COBRADO', 0 a 'PENDIENTE', y NaN a otros
             X[col] = X[col].map({'COBRADO': 1, 'PENDIENTE': 0}).fillna(np.nan)
             
     # Identificar columnas numéricas y categóricas
-    # Las características base numéricas
     numeric_features = X.select_dtypes(include=np.number).columns.tolist()
-    # Las características base categóricas
     categorical_features = X.select_dtypes(exclude=np.number).columns.tolist()
-
-    # --- Lógica Gradual ---
-    # Quitar las notas futuras de las características, si es que existen
-    if 'U1' in numeric_features and target_unit == 'U1':
-        numeric_features.remove('U1')
-    if 'U2' in numeric_features and target_unit in ['U1', 'U2']:
-        numeric_features.remove('U2')
-    if 'U3' in numeric_features and target_unit in ['U1', 'U2', 'U3']:
-        numeric_features.remove('U3')
-    if 'U4' in numeric_features: # U4 nunca es una característica
-        numeric_features.remove('U4')
-
-    print(f"[Preprocesador] Numéricas: {numeric_features}")
-    print(f"[Preprocesador] Categóricas: {categorical_features}")
 
     # --- Creación de Pipelines de Preprocesamiento ---
     
     # Pipeline para variables numéricas:
+    # 1. Imputar (rellenar valores faltantes, ej. en cuotas) con 0 (significa PENDIENTE)
+    # 2. Escalar los datos (importante para Regresión Logística)
     numeric_transformer = Pipeline(steps=[
-        ('imputer', SimpleImputer(strategy='constant', fill_value=0)), # Rellenar cuotas/asistencia/notas faltantes con 0
+        ('imputer', SimpleImputer(strategy='constant', fill_value=0)),
         ('scaler', StandardScaler())
     ])
 
     # Pipeline para variables categóricas:
+    # 1. Imputar (rellenar valores faltantes) con una categoría 'Desconocido'
+    # 2. Aplicar One-Hot Encoding (convertir 'Lima', 'Callao' en columnas 0/1)
+    #    handle_unknown='ignore' es clave para que la predicción no falle si ve un distrito nuevo.
     categorical_transformer = Pipeline(steps=[
         ('imputer', SimpleImputer(strategy='constant', fill_value='Desconocido')),
         ('onehot', OneHotEncoder(handle_unknown='ignore'))
@@ -56,10 +44,12 @@ def preprocess_gradual(X, target_unit):
             ('num', numeric_transformer, numeric_features),
             ('cat', categorical_transformer, categorical_features)
         ],
-        remainder='passthrough'
+        remainder='passthrough' # Dejar pasar columnas no especificadas (aunque no debería haber)
     )
 
+    # Aplicar el preprocesador
     X_processed = preprocessor.fit_transform(X)
     
-    print(f"Preprocesamiento gradual para {target_unit} completado.")
+    print("Preprocesamiento histórico completado.")
+    # Devolver los datos procesados Y el preprocesador (para guardarlo)
     return X_processed, preprocessor
