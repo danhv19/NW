@@ -1,61 +1,91 @@
 import pandas as pd
-import seaborn as sns
 import matplotlib.pyplot as plt
+import seaborn as sns
 import os
+import numpy as np
 
-def generate_behavioral_plots(df, static_folder='static/img'):
+# Desactivar advertencias de futuras versiones
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
+def plot_gradual_results(df, target_column, target_unit, plots_folder):
     """
-    Genera y guarda gráficos que muestran el comportamiento evolutivo de los estudiantes.
+    Genera y guarda una serie de gráficos de Análisis Exploratorio de Datos (EDA)
+    para la fase de entrenamiento gradual.
     """
-    if not os.path.exists(static_folder):
-        os.makedirs(static_folder)
-        
-    image_paths = {}
+    print(f"Generando gráficos para el objetivo: {target_column} (Unidad: {target_unit})")
     
-    df_plot = df.copy()
-    if 'Estado_nota' not in df_plot.columns:
-        if 'target' in df_plot.columns:
-            df_plot['Estado_nota'] = df_plot['target'].map({1: 'Aprobado', 0: 'Desaprobado'})
-        else:
-            return {}
+    # Asegurarse de que la carpeta de gráficos exista
+    os.makedirs(plots_folder, exist_ok=True)
+    
+    # Lista para almacenar las rutas de los gráficos generados
+    plot_paths = {}
 
-    # --- GRÁFICO 1: Evolución del Rendimiento Promedio ---
-    try:
-        plt.figure(figsize=(10, 6))
-        df_melted = df_plot.melt(id_vars=['Estado_nota'], value_vars=['ud1', 'ud2', 'ud3', 'promedio'], 
-                                 var_name='Etapa', value_name='Nota')
-        sns.lineplot(data=df_melted, x='Etapa', y='Nota', hue='Estado_nota', marker='o', errorbar=None)
-        plt.title('Evolución de Notas Promedio (Aprobados vs. Desaprobados)')
-        plt.ylabel('Nota Promedio')
-        plt.grid(True)
-        img_path = os.path.join(static_folder, 'gradual_plot_rendimiento.png')
-        plt.savefig(img_path)
+    # --- Gráfico 1: Distribución del Promedio Objetivo ---
+    plt.figure(figsize=(10, 6))
+    sns.histplot(df[target_column], kde=True, bins=20)
+    plt.axvline(10.5, color='red', linestyle='--', label='Límite Aprobado (10.5)')
+    plt.title(f'Distribución de Notas para {target_column}')
+    plt.xlabel('Nota')
+    plt.ylabel('Frecuencia')
+    plt.legend()
+    plot_name = f'eda_distribucion_{target_unit}.png'
+    plot_path = os.path.join(plots_folder, plot_name)
+    plt.savefig(plot_path)
+    plt.close()
+    plot_paths['distribucion'] = plot_name
+
+    # --- Gráfico 2: Correlación de Variables Numéricas ---
+    # Seleccionar solo columnas numéricas
+    numeric_cols = df.select_dtypes(include=np.number).columns
+    if len(numeric_cols) > 1:
+        plt.figure(figsize=(15, 10))
+        corr_matrix = df[numeric_cols].corr()
+        sns.heatmap(corr_matrix, annot=True, fmt='.2f', cmap='coolwarm', linewidths=0.5)
+        plt.title('Mapa de Calor de Correlaciones Numéricas')
+        plot_name = f'eda_heatmap_corr_{target_unit}.png'
+        plot_path = os.path.join(plots_folder, plot_name)
+        plt.tight_layout()
+        plt.savefig(plot_path)
         plt.close()
-        image_paths['Evolucion_Rendimiento'] = img_path
-    except Exception as e:
-        print(f"Error al generar gráfico de rendimiento: {e}")
+        plot_paths['heatmap'] = plot_name
 
-    # --- GRÁFICO 2: Tasa de Aprobación vs. Cuotas Pagadas a la UD3 ---
-    try:
-        plt.figure(figsize=(10, 6))
-        # Asegurarse que las columnas de cuotas sean numéricas
-        for col in ['CUOTA_1', 'CUOTA_2', 'CUOTA_3']:
-            if col not in df_plot.columns: df_plot[col] = 0 # Añadir si no existe
-        df_plot['cuotas_pagadas_ud3'] = df_plot['CUOTA_1'] + df_plot['CUOTA_2'] + df_plot['CUOTA_3']
+    # --- Gráfico 3: Impacto de 'Carrera' en el Promedio ---
+    if 'Carrera' in df.columns:
+        plt.figure(figsize=(12, 8))
+        # Tomar las 10 carreras más frecuentes para evitar gráficos saturados
+        top_carreras = df['Carrera'].value_counts().nlargest(10).index
+        df_top_carreras = df[df['Carrera'].isin(top_carreras)]
         
-        # 'target' debe ser numérico (0 o 1) para calcular el promedio (tasa)
-        if 'target' not in df_plot.columns: df_plot['target'] = df_plot['Estado_nota'].map({'Aprobado': 1, 'Desaprobado': 0})
-
-        sns.barplot(data=df_plot, x='cuotas_pagadas_ud3', y='target', palette='viridis')
-        plt.title('Tasa de Aprobación según Cuotas Pagadas (hasta UD3)')
-        plt.xlabel('Número de Cuotas Pagadas al finalizar la UD3')
-        plt.ylabel('Tasa de Aprobación Promedio')
-        plt.grid(axis='y')
-        img_path = os.path.join(static_folder, 'gradual_plot_pagos.png')
-        plt.savefig(img_path)
+        sns.boxplot(data=df_top_carreras, x=target_column, y='Carrera', palette='viridis')
+        plt.axvline(10.5, color='red', linestyle='--', label='Límite Aprobado (10.5)')
+        plt.title(f'Distribución de {target_column} por Carrera (Top 10)')
+        plt.xlabel(f'Nota {target_column}')
+        plt.ylabel('Carrera')
+        plt.legend()
+        plot_name = f'eda_box_carrera_{target_unit}.png'
+        plot_path = os.path.join(plots_folder, plot_name)
+        plt.tight_layout()
+        plt.savefig(plot_path)
         plt.close()
-        image_paths['Impacto_Pagos'] = img_path
-    except Exception as e:
-        print(f"Error al generar gráfico de pagos: {e}")
-        
-    return image_paths
+        plot_paths['box_carrera'] = plot_name
+
+    # --- Gráfico 4: Impacto de 'PORCENTAJE_asistencia' ---
+    if 'PORCENTAJE_asistencia' in df.columns:
+        plt.figure(figsize=(10, 6))
+        sns.scatterplot(data=df, x='PORCENTAJE_asistencia', y=target_column, hue='TARGET_Aprobado', palette='seismic', alpha=0.6)
+        plt.axvline(df['PORCENTAJE_asistencia'].median(), color='orange', linestyle='--', label='Mediana Asistencia')
+        plt.axhline(10.5, color='red', linestyle='--', label='Límite Aprobado (10.5)')
+        plt.title(f'Asistencia vs. Nota {target_column}')
+        plt.xlabel('Porcentaje de Asistencia')
+        plt.ylabel(f'Nota {target_column}')
+        plt.legend()
+        plot_name = f'eda_scatter_asistencia_{target_unit}.png'
+        plot_path = os.path.join(plots_folder, plot_name)
+        plt.tight_layout()
+        plt.savefig(plot_path)
+        plt.close()
+        plot_paths['scatter_asistencia'] = plot_name
+
+    print(f"Gráficos generados: {list(plot_paths.keys())}")
+    return plot_paths

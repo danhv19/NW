@@ -1,87 +1,37 @@
 {% extends 'base.html' %}
-{% block title %}Proyecto de Predicción Estudiantil{% endblock %}
+
+{% block title %}Inicio - Sistema de Predicción{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-
-  <div class="text-center mb-5">
-    <h1 class="display-5 text-primary fw-bold">
-      🔍 Bienvenido al Sistema de Predicción
-    </h1>
-    <p class="lead">
-      Utiliza los formularios a continuación para entrenar modelos o realizar nuevas predicciones.
-    </p>
-  </div>
-
-  <div class="card shadow-sm mb-4">
-    <div class="card-header bg-primary text-white">
-      <h2 class="h5 mb-0"><i class="bi bi-rocket-takeoff-fill me-2"></i>1. Entrenar un modelo desde Excel (.xlsx)</h2>
+<div class="p-5 mb-4 bg-white rounded-3 shadow-sm">
+    <div class="container-fluid py-5">
+        <h1 class="display-5 fw-bold">Bienvenido al Sistema de Alerta Temprana</h1>
+        <p class="col-md-8 fs-4">Este sistema utiliza un enfoque de "Predicción Gradual Adaptativa" para identificar a los estudiantes en riesgo a medida que avanza el ciclo académico.</p>
+        <hr class="my-4">
+        <p>Utilice las siguientes opciones para entrenar los modelos o realizar nuevas predicciones.</p>
+        <a class_btn="btn btn-primary btn-lg me-2" href="/train_gradual" role="button">
+            <i class="bi bi-robot"></i> Entrenar un Modelo
+        </a>
+        <a class_btn="btn btn-success btn-lg" href="/predict_gradual" role="button">
+            <i class="bi bi-clipboard-data"></i> Realizar una Nueva Predicción
+        </a>
     </div>
-    <div class="card-body">
-      <form action="/train" method="post" enctype="multipart/form-data">
-        <div class="mb-3">
-          <label for="train-file-original" class="form-label">Selecciona archivo de entrenamiento:</label>
-          <input class="form-control" type="file" id="train-file-original" name="train_file" accept=".xlsx,.xls" required>
+</div>
+
+<div class="row align-items-md-stretch">
+    <div class="col-md-6 mb-4">
+        <div class="h-100 p-5 text-white bg-dark rounded-3 shadow">
+            <h2>Paso 1: Entrenar Modelo</h2>
+            <p>Suba el archivo histórico consolidado (ej. <code>Data - consolidada.xlsx</code>) para entrenar y re-entrenar los modelos para cada unidad (U1, U2, U3, U4). Cada entrenamiento genera un archivo <code>.pkl</code> más inteligente.</p>
+            <a class="btn btn-outline-light" href="/train_gradual" role="button">Ir a Entrenamiento</a>
         </div>
-        <button type="submit" class="btn btn-primary">Entrenar Modelo</button>
-      </form>
     </div>
-  </div>
-
-  <div class="card shadow-sm mb-4">
-    <div class="card-header bg-info text-dark">
-        <h2 class="h5 mb-0"><i class="bi bi-graph-up-arrow me-2"></i>2. (NUEVO) Entrenamiento Gradual por Etapas</h2>
-    </div>
-    <div class="card-body">
-        <p class="card-text">Sube tus datos históricos (con columnas ud1 a ud4) para entrenar 4 modelos, uno por cada etapa del curso. Esto permitirá predicciones tempranas y adaptativas.</p>
-        <form action="/train_gradual" method="post" enctype="multipart/form-data">
-            <div class="mb-3">
-                <label for="train_file_gradual" class="form-label">Sube el archivo de entrenamiento (.xlsx):</label>
-                <input class="form-control" type="file" id="train_file_gradual" name="train_file" required>
-            </div>
-            <button type="submit" class="btn btn-info">Iniciar Entrenamiento Gradual</button>
-        </form>
-    </div>
-  </div>
-
-  <div class="card shadow-sm mb-4">
-    <div class="card-header bg-success text-white">
-        <h2 class="h5 mb-0"><i class="bi bi-bullseye me-2"></i>3. (NUEVO) Predecir con Modelo Gradual</h2>
-    </div>
-    <div class="card-body">
-        <p class="card-text">Sube el archivo de nuevos estudiantes y el <strong>mejor_modelo_gradual.pkl</strong> que descargaste para obtener una predicción de su rendimiento final.</p>
-        <form action="/predict_gradual" method="post" enctype="multipart/form-data">
-            <div class="mb-3">
-              <label for="predict-file-gradual" class="form-label">Archivo con nuevos datos (.xlsx):</label>
-              <input class="form-control" type="file" id="predict-file-gradual" name="predict_file" required>
-            </div>
-            <div class="mb-3">
-              <label for="model-file-gradual" class="form-label">Mejor modelo entrenado (.pkl):</label>
-              <input class="form-control" type="file" id="model-file-gradual" name="model_file" required>
-            </div>
-            <button type="submit" class="btn btn-success">Realizar Predicción Gradual</button>
-        </form>
-    </div>
-  </div>
-
-  <div class="card shadow-sm">
-    <div class="card-header bg-primary text-white">
-      <h2 class="h5 mb-0"><i class="bi bi-magic me-2"></i>4. Realizar predicción con modelo entrenado</h2>
-    </div>
-    <div class="card-body">
-      <form action="/predict" method="post" enctype="multipart/form-data">
-        <div class="mb-3">
-          <label for="predict-file" class="form-label">Archivo con nuevos datos (.xlsx):</label>
-          <input class="form-control" type="file" id="predict-file" name="predict_file" accept=".xlsx,.xls" required>
+    <div class="col-md-6 mb-4">
+        <div class="h-100 p-5 bg-white border rounded-3 shadow-sm">
+            <h2>Paso 2: Predecir Estado</h2>
+            <p>Suba un archivo de estudiantes (ej. <code>Para predecir U2.xlsx</code>). El sistema detectará automáticamente qué unidad debe predecir (U1, U2, U3 o U4) basándose en las notas ya registradas.</p>
+            <a class="btn btn-outline-success" href="/predict_gradual" role="button">Ir a Predicción</a>
         </div>
-        <div class="mb-3">
-          <label for="model-file" class="form-label">Modelo entrenado (.pkl):</label>
-          <input class="form-control" type="file" id="model-file" name="model_file" accept=".pkl" required>
-        </div>
-        <button type="submit" class="btn btn-primary">Realizar Predicción</button>
-      </form>
     </div>
-  </div>
-
 </div>
 {% endblock %}

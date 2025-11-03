@@ -1,61 +1,58 @@
 {% extends 'base.html' %}
 
-{% block content %}
-<div class="container mt-5">
-    <h1>Resultados del Entrenamiento Gradual</h1>
-    <p>Para cada etapa, se han entrenado 3 modelos y se ha guardado el de mayor precisión. Descarga el modelo especialista que necesites para tu predicción.</p>
+{% block title %}Resultados de Entrenamiento{% endblock %}
 
-    <div class="my-5">
-        <h2>Análisis del Comportamiento del Estudiante</h2>
-        {% if images %}
+{% block content %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+        <h4 class="mb-0">Resultados del Entrenamiento para {{ target_unit }}</h4>
+    </div>
+    <div class="card-body">
+        <h5 class="card-title">Métricas de Rendimiento (3 Modelos)</h5>
+        <p>Se entrenaron 3 modelos y se seleccionó el mejor (mayor "accuracy") para ser guardado como <code>{{ model_filename }}</code>.</p>
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Modelo</th>
+                        <th>Accuracy (Precisión General)</th>
+                        <th>Precisión (Aprobado)</th>
+                        <th>Recall (Aprobado)</th>
+                        <th>F1-Score (Aprobado)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for model_name, metric_values in metrics.items() %}
+                    <tr>
+                        <td><strong>{{ model_name }}</strong></td>
+                        <td>{{ "%.2f"|format(metric_values.accuracy * 100) }}%</td>
+                        <td>{{ "%.2f"|format(metric_values.precision_aprobado * 100) }}%</td>
+                        <td>{{ "%.2f"|format(metric_values.recall_aprobado * 100) }}%</td>
+                        <td>{{ "%.2f"|format(metric_values.f1_aprobado * 100) }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header">
+        <h4 class="mb-0">Análisis Exploratorio de Datos (EDA)</h4>
+    </div>
+    <div class="card-body">
+        <p>Estos gráficos se generaron a partir del archivo de entrenamiento para entender el comportamiento de las variables.</p>
         <div class="row">
-            {% for title, path in images.items() %}
-            <div class="col-md-6 text-center">
-                <h4>{{ title.replace('_', ' ') }}</h4>
-                <img src="{{ url_for('static', filename=path) }}" class="img-fluid" alt="{{ title }}">
+            {% for plot_name, plot_file in plots.items() %}
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-header">{{ plot_name|title }}</div>
+                    <img src="{{ url_for('static', filename='img/' + plot_file) }}" class="card-img-top" alt="Gráfico de {{ plot_name }}">
+                </div>
             </div>
             {% endfor %}
         </div>
-        {% else %}
-        <p class="text-muted">No se pudieron generar los gráficos.</p>
-        {% endif %}
     </div>
-
-    <div class="mt-5">
-        <h2>Modelos Especializados Entrenados</h2>
-        <table class="table table-striped table-hover">
-            <thead class="table-dark">
-                <tr>
-                    <th>Etapa</th>
-                    <th>Algoritmo Ganador</th>
-                    <th>Accuracy</th>
-                    <th>Descargar Modelo</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for stage_name, data in results.items() %}
-                    {% if stage_name != 'image_paths' %}
-                    <tr>
-                        <td><strong>{{ stage_name }}</strong></td>
-                        {% if data.error %}
-                            <td colspan="3" class="text-danger">Error: {{ data.error }}</td>
-                        {% else %}
-                            <td><span class="badge bg-primary">{{ data.best_model_name }}</span></td>
-                            <td><strong>{{ "%.4f"|format(data.accuracy) }}</strong></td>
-                            <td>
-                                <a href="{{ url_for('download_model_file', filename=data.model_path.split('/')[-1].split('\\')[-1]) }}" class="btn btn-outline-primary btn-sm">
-                                    <i class="bi bi-download me-1"></i>
-                                    {{ data.model_path.split('/')[-1].split('\\')[-1] }}
-                                </a>
-                            </td>
-                        {% endif %}
-                    </tr>
-                    {% endif %}
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    <a href="/" class="btn btn-secondary mt-4">Volver al Inicio</a>
 </div>
 {% endblock %}

@@ -1,85 +1,43 @@
-{% extends "base.html" %}
-{% block title %}Resultados de Entrenamiento{% endblock %}
+{% extends 'base.html' %}
+
+{% block title %}Entrenar Modelo Gradual{% endblock %}
 
 {% block content %}
-<div class="container-xl py-4">
-
-  <!-- ── ENCABEZADO ─────────────────────────────────────────────── -->
-  <h1 class="display-6 mb-4 text-primary fw-bold">
-    ✅ Resultados del Entrenamiento
-  </h1>
-
-  <!-- ── RESUMEN Y DESCARGA ─────────────────────────────────────── -->
-  <div class="row g-4">
-
-    <!-- Métricas -->
-    <div class="col-12 col-lg-8">
-      <div class="card shadow-sm h-100">
-        <div class="card-header bg-primary text-white">
-          <i class="bi bi-bar-chart-fill me-2"></i>Resumen de Métricas
-        </div>
-        <div class="card-body">
-          <pre class="small mb-0">{{ results }}</pre>
-        </div>
-      </div>
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <h4 class="mb-0">Entrenamiento de Modelo Gradual</h4>
     </div>
-
-    <!-- Mejor modelo -->
-    <div class="col-12 col-lg-4">
-      <div class="card shadow-sm text-center h-100 d-flex flex-column">
-        <div class="card-body my-auto">
-          <h5 class="card-title">🏆 Mejor Modelo</h5>
-          <p class="fw-semibold text-success">{{ model_name }}</p>
-          <a href="{{ url_for('download_model_file', filename=model_name) }}"
-             class="btn btn-outline-success btn-lg mt-1">
-            <i class="bi bi-download me-1"></i>Descargar .pkl
-          </a>
-        </div>
-      </div>
+    <div class="card-body">
+        <p class="card-text">
+            Suba aquí el archivo histórico de datos (ej. <code>Data - consolidada.xlsx</code>).
+            Este archivo debe contener todas las características de matrícula y, lo más importante,
+            las notas finales de las unidades (U1, U2, U3, U4) o el <code>PROMEDIO_CURSO</code>.
+        </p>
+        
+        <form action="/train_gradual" method="POST" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label for="file" class="form-label">1. Seleccione el archivo de entrenamiento:</label>
+                <input class="form-control" type="file" id="file" name="file" required>
+            </div>
+            
+            <div class="mb-3">
+                <label for="target_unit" class="form-label">2. Seleccione el modelo que desea entrenar:</label>
+                <select class="form-select" id="target_unit" name="target_unit" required>
+                    <option value="" disabled selected>-- Elija una unidad --</option>
+                    <option value="U1">Modelo para Predecir U1 (Base)</option>
+                    <option value="U2">Modelo para Predecir U2 (Usa U1)</option>
+                    <option value="U3">Modelo para Predecir U3 (Usa U1, U2)</option>
+                    <option value="U4">Modelo para Predecir U4 (Usa U1, U2, U3)</option>
+                </select>
+                <div class="form-text">
+                    Ej: Si selecciona "Modelo para Predecir U2", el sistema usará los datos de matrícula + la nota U1 para entrenar el modelo U2.
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-robot"></i> Entrenar Modelo
+            </button>
+        </form>
     </div>
-  </div>
-
-  <!-- ── GALERÍA ────────────────────────────────────────────────── -->
-  <hr class="my-5">
-  <h2 class="h4 fw-bold mb-3">📊 Gráficos generados</h2>
-
-  <div class="row g-4 masonry-grid">            <!-- Masonry container -->
-    {% for img in plots %}
-    <div class="col-12 col-md-6 col-xl-4 masonry-item">  <!-- Masonry item -->
-      <div class="card shadow-sm">
-        <!-- Imagen ↗ abre modal -->
-        <a data-bs-toggle="modal" data-bs-target="#modal{{ loop.index }}">
-          <img src="{{ url_for('static', filename=img) }}"
-               class="card-img-top img-thumbnail"
-               alt="Gráfico {{ loop.index }}">
-        </a>
-        <div class="card-footer text-muted small">
-          {{ img.split('/')[-1].replace('_',' ').replace('.png','') }}
-        </div>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-
-  <!-- Volver -->
-  <div class="text-end mt-5">
-    <a class="btn btn-secondary" href="{{ url_for('index') }}">
-      <i class="bi bi-arrow-left-circle me-1"></i>Volver al inicio
-    </a>
-  </div>
 </div>
-
-<!-- ── MODALES (zoom) ───────────────────────────────────────────── -->
-{% for img in plots %}
-<div class="modal fade" id="modal{{ loop.index }}" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-xl">
-    <div class="modal-content bg-transparent border-0 position-relative">
-      <button type="button" class="btn-close position-absolute top-0 end-0 m-3"
-              data-bs-dismiss="modal" aria-label="Close"></button>
-      <img src="{{ url_for('static', filename=img) }}"
-           class="img-fluid rounded shadow" alt="Gráfico ampliado">
-    </div>
-  </div>
-</div>
-{% endfor %}
 {% endblock %}
