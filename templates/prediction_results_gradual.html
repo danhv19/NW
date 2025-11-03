@@ -1,28 +1,28 @@
 {% extends 'base.html' %}
-
 {% block title %}Resultados de la Predicción{% endblock %}
+{% block page_title %}Resultados de la Predicción para {{ prediction_target }}{% endblock %}
 
 {% block content %}
 <div class="card shadow-sm">
-    <div class="card-header bg-success text-white">
-        <h4 class="mb-0">Resultados de la Predicción para {{ prediction_target }}</h4>
+    <div class="card-header card-header-success">
+        <h5 class="mb-0 text-white"><i class="bi bi-check-circle-fill me-2"></i>Predicción Completada</h5>
     </div>
-    <div class="card-body">
+    <div class="card-body p-4">
         
         {% if prediction_target == 'Completo' %}
             <h5 class="card-title">Predicción No Requerida</h5>
-            <p>El archivo subido ya contiene todas las notas de U1 a U4. No se necesita ninguna predicción.</p>
+            <p class="text-muted">El archivo subido ya contiene todas las notas de U1 a U4. No se necesita ninguna predicción.</p>
         {% else %}
-            <p class="card-text">
+            <p class="card-text text-muted fs-5">
                 El sistema detectó que faltaban las notas de <strong>{{ prediction_target }}</strong>
                 y ha generado las siguientes predicciones.
             </p>
-            <a href="{{ url_for('uploaded_file', filename=results_path) }}" class="btn btn-success mb-3">
+            <a href="{{ url_for('uploaded_file', filename=results_path) }}" class="btn btn-success btn-lg mb-3">
                 <i class="bi bi-download"></i> Descargar Resultados Completos (CSV)
             </a>
             
             <h5 class="mt-4">Vista Previa de Resultados:</h5>
-            <div class_table-responsive>
+            <div class="table-responsive">
                 {{ tables[0]|safe }}
             </div>
         {% endif %}

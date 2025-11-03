@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block title %}Entrenar Modelo Gradual{% endblock %}
+{% block page_title %}Entrenamiento de Modelo Gradual{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header card-header-primary">
+                <h5 class="mb-0 text-white"><i class="bi bi-upload me-2"></i>Subir Datos de Entrenamiento</h5>
+            </div>
+            <div class="card-body p-4">
+                <p class="card-text text-muted">
+                    Suba aquí el archivo histórico de datos (ej. <code>Data - consolidada.xlsx</code>).
+                    Este archivo debe contener todas las características de matrícula y, lo más importante,
+                    las notas finales de las unidades (U1, U2, U3, U4) o el <code>PROMEDIO_CURSO</code>.
+                </p>
+                
+                <form action="/train_gradual" method="POST" enctype="multipart/form-data" class="mt-4">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">1. Seleccione el archivo de entrenamiento:</label>
+                        <input class="form-control form-control-lg" type="file" id="file" name="file" required>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="target_unit" class="form-label">2. Seleccione el modelo que desea entrenar:</label>
+                        <select class="form-select form-select-lg" id="target_unit" name="target_unit" required>
+                            <option value="" disabled selected>-- Elija una unidad --</option>
+                            <option value="U1">Modelo para Predecir U1 (Base)</option>
+                            <option value="U2">Modelo para Predecir U2 (Usa U1)</option>
+                            <option value="U3">Modelo para Predecir U3 (Usa U1, U2)</option>
+                            <option value="U4">Modelo para Predecir U4 (Usa U1, U2, U3)</option>
+                        </select>
+                        <div class="form-text mt-2">
+                            Ej: Si selecciona "Modelo para Predecir U2", el sistema usará los datos de matrícula + la nota U1 para entrenar el modelo U2.
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-lg w-100">
+                        <i class="bi bi-robot"></i> Entrenar Modelo
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Instrucciones</h5>
+            </div>
+            <div class="card-body">
+                <p class="fw-bold text-dark">Paso 1: Entrenar Modelo U1</p>
+                <p class="text-muted small">Seleccione su archivo <code>Data - consolidada.xlsx</code> y elija <code>Modelo para Predecir U1</code>. Esto creará <code>modelo_gradual_ud1.pkl</code>.</p>
+                
+                <p class="fw-bold text-dark">Paso 2: Entrenar Modelo U2</p>
+                <p class="text-muted small">Vuelva a seleccionar el mismo archivo <code>Data - consolidada.xlsx</code> y elija <code>Modelo para Predecir U2</code>. Esto creará <code>modelo_gradual_ud2.pkl</code>.</p>
+                
+                <p class="fw-bold text-dark">Paso 3: Repetir</p>
+                <p class="text-muted small">Repita el proceso para U3 y U4. Debe entrenar los 4 modelos antes de poder realizar predicciones completas.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
