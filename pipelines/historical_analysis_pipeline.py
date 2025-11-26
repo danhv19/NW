@@ -5,9 +5,12 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.metrics import accuracy_score, classification_report
+
 # --- CORRECCIÓN DE IMPORTACIÓN ---
-from .historical_preprocessing import preprocess_historical # <--- Renombrado
-from .historical_plotting import plot_historical_results # <--- Renombrado
+# Le decimos que importe desde 'historical_preprocessing.py' y 'historical_plotting.py'
+from .historical_preprocessing import preprocess_historical
+from .historical_plotting import plot_historical_results
+# ---------------------------------
 
 # --- Definición de Características ---
 # Columnas que esperamos del archivo "Data - consolidada.xlsx"
@@ -36,10 +39,15 @@ def run_historical_analysis(filepath, models_folder, plots_folder):
     print(f"--- Iniciando Análisis Histórico ---")
 
     try:
+        # Intentar leer como Excel
         df = pd.read_excel(filepath)
-    except Exception as e:
-        print(f"No se pudo leer como Excel ({e}), intentando con CSV...")
-        df = pd.read_csv(filepath)
+    except Exception as e_excel:
+        print(f"No se pudo leer como Excel ({e_excel}), intentando con CSV...")
+        try:
+            # Intentar leer como CSV
+            df = pd.read_csv(filepath)
+        except Exception as e_csv:
+            raise Exception(f"Error al leer el archivo. No es ni Excel ni CSV: {e_csv}")
 
     df.rename(columns=COLUMN_MAP, inplace=True)
 
